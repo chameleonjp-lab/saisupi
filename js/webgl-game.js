@@ -27,6 +27,10 @@ import { getPerformanceProfile } from './performance-profile.js';
 import { P1_PHASES, SaisupiSession } from './saisupi-session.js';
 import { SaisupiClock } from './saisupi-clock.js';
 import {
+  TIMER_FLASH_DURATION,
+  getOneShotFlashIntensity
+} from './saisupi-flash.js';
+import {
   TARGET_COUNT,
   generateTargetRun,
   judgeTargetLanding
@@ -163,6 +167,18 @@ function createTargetMarker(target, ringGeometry, pipGeometry, ringMaterial, pip
   group.position.copy(gridToWorld(target.row, target.column, FLOOR_Y + 0.11));
   group.userData.targetId = target.id;
   return group;
+}
+
+function setDieFlashIntensity(die, intensity) {
+  const bodyMaterial = die.mesh?.userData.bodyMaterial;
+  if (!bodyMaterial) return;
+  if (intensity <= 0) {
+    bodyMaterial.emissive.setHex(0x000000);
+    bodyMaterial.emissiveIntensity = 0;
+    return;
+  }
+  bodyMaterial.emissive.setHex(0xffc64b);
+  bodyMaterial.emissiveIntensity = intensity * 2.1;
 }
 
 function createPlayer(useShadows, resources) {
@@ -927,8 +943,9 @@ export class WebGLSaisupi {
         die.mesh.userData.bodyMaterial.emissiveIntensity = 0;
         if (this.activeKey === key) this.player.position.y = PLAYER_Y;
         const exposedAt = now;
-        if (this.session.startRunning(exposedAt)) {
+        if (this.activeKey === key && this.session.startRunning(exposedAt)) {
           this.clock.start(exposedAt);
+          this.startTimerFlash(die, exposedAt);
         } else {
           this.session.setPhase(P1_PHASES.READY);
         }
@@ -940,6 +957,29 @@ export class WebGLSaisupi {
           snapshot: this.getSnapshot()
         });
         this.callbacks.onMessage?.('サイコロが完全に露出しました。計測を開始します');
+      }
+    }
+  }
+
+  startTimerFlash(die, startedAt) {
+    if (die.timerFlash || die.timerFlashCompleted || !Number.isFinite(startedAt)) return false;
+    die.timerFlash = Object.freeze({
+      startedAt,
+      duration: TIMER_FLASH_DURATION
+    });
+    setDieFlashIntensity(die, getOneShotFlashIntensity(0, TIMER_FLASH_DURATION));
+    return true;
+  }
+
+  updateTimerFlash(now) {
+    for (const die of this.dice.values()) {
+      if (!die.timerFlash) continue;
+      const elapsed = now - die.timerFlash.startedAt;
+      const intensity = getOneShotFlashIntensity(elapsed, die.timerFlash.duration);
+      setDieFlashIntensity(die, intensity);
+      if (elapsed >= die.timerFlash.duration) {
+        die.timerFlashCompleted = true;
+        delete die.timerFlash;
       }
     }
   }
@@ -1013,6 +1053,7 @@ export class WebGLSaisupi {
 
     const now = this.getGameTime();
     this.updateRising(now);
+    this.updateTimerFlash(now);
     this.runAnimationFrameTasks();
     if (this.session.phase === P1_PHASES.RUNNING) {
       this.callbacks.onTick?.(this.getSnapshot());
