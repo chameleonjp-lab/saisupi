@@ -40,6 +40,10 @@ test('P1の見た目・操作の継承点を保持する', () => {
   assert.match(main, /data-direction/);
   assert.match(game, /generateTargetRun/);
   assert.match(game, /SaisupiClock/);
+  assert.match(game, /startTimerFlash/);
+  assert.match(game, /updateTimerFlash/);
+  assert.match(game, /timerFlashCompleted/);
+  assert.match(game, /TIMER_FLASH_DURATION/);
   assert.match(game, /onTick/);
   assert.match(game, /RUNNING/);
   assert.match(game, /FINISHED/);
