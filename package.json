@@ -1,0 +1,9 @@
+{
+  "name": "saisupi",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "check:syntax": "node scripts/check-syntax.js"
+  }
+}

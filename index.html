@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1018">
+  <meta name="saisupi-release" content="p1-base-v1">
+  <link rel="canonical" href="https://chameleonjp-lab.github.io/saisupi/">
+  <title>サイスピ</title>
+  <link rel="stylesheet" href="./css/style.css?v=p1-base-v1">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <main id="app" class="app" data-screen="home">
+    <section id="home-screen" class="screen home-screen" aria-labelledby="game-title">
+      <div class="home-card">
+        <p class="screen-kicker">サイコロの上面をそろえる</p>
+        <h1 id="game-title">サイスピ</h1>
+        <p class="screen-lead">
+          盤面に沿ってキャラクターを動かし、埋まったサイコロへ登ります。
+          サイコロが上がりきるところまでを確認する土台を実装しています。
+        </p>
+        <label class="player-name-field" for="player-name-input">
+          <span>名前 <b>必須</b></span>
+          <input
+            id="player-name-input"
+            name="player-name"
+            type="text"
+            autocomplete="nickname"
+            autocapitalize="off"
+            enterkeyhint="done"
+            maxlength="20"
+            spellcheck="false"
+            aria-describedby="player-name-help player-name-error"
+            placeholder="名前を入力"
+          >
+          <small id="player-name-help">1〜20文字。名前はこのプレイ画面に表示します</small>
+        </label>
+        <p id="player-name-error" class="form-error" role="alert" hidden></p>
+        <button id="start-button" class="primary-button" type="button">ゲームを始める</button>
+        <p id="home-error" class="form-error" role="alert" hidden></p>
+        <p class="scope-note">目標表示、計測、結果、保存、ランキングは次の工程で追加します。</p>
+      </div>
+    </section>
+
+    <section id="game-screen" class="screen game-screen" aria-labelledby="game-screen-title" hidden>
+      <header class="game-header">
+        <div>
+          <p class="screen-kicker">サイスピ</p>
+          <h2 id="game-screen-title">サイコロへ登る</h2>
+        </div>
+        <div class="game-header-actions">
+          <output id="phase-status" class="phase-status" aria-live="polite">待機中</output>
+          <button id="home-button" class="secondary-button" type="button">ホームへ</button>
+        </div>
+      </header>
+
+      <section id="stage" class="stage" aria-label="サイスピの3Dゲーム画面">
+        <canvas id="game-canvas" tabindex="-1"></canvas>
+        <div id="loading" class="loading" role="status">3D盤面を準備中…</div>
+        <div id="message" class="message" role="status" aria-live="polite">
+          埋まったサイコロへ近づいて登ります
+        </div>
+        <div id="direction-controls" class="direction-controls" role="group" aria-label="斜め方向の移動ボタン">
+          <button class="direction-control direction-control-left" type="button" data-direction="left" aria-label="左上へ移動">↖</button>
+          <button class="direction-control direction-control-up" type="button" data-direction="up" aria-label="右上へ移動">↗</button>
+          <button class="direction-control direction-control-down" type="button" data-direction="down" aria-label="左下へ移動">↙</button>
+          <button class="direction-control direction-control-right" type="button" data-direction="right" aria-label="右下へ移動">↘</button>
+        </div>
+        <section id="webgl-error-panel" class="webgl-error-panel" aria-labelledby="webgl-error-title" hidden>
+          <strong id="webgl-error-title">3D表示を開始できません</strong>
+          <p id="webgl-error-status" role="alert"></p>
+          <button id="webgl-error-home" class="secondary-button" type="button">ホームへ戻る</button>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="./js/main.js?v=p1-base-v1"></script>
+</body>
+</html>
+
