@@ -14,7 +14,8 @@ import {
   INITIAL_PLAYER_POSITION,
   PLAYER_Y,
   RISE_DEPTH,
-  RISE_DURATION
+  RISE_DURATION,
+  TARGET_LAYOUT_VERSION
 } from './saisupi-config.js';
 import {
   BOARD_BASE_SIZE,
@@ -24,6 +25,12 @@ import {
 } from './camera-framing.js';
 import { getPerformanceProfile } from './performance-profile.js';
 import { P1_PHASES, SaisupiSession } from './saisupi-session.js';
+import { SaisupiClock } from './saisupi-clock.js';
+import {
+  TARGET_COUNT,
+  generateTargetRun,
+  judgeTargetLanding
+} from './saisupi-targets.js';
 
 const DIRECTIONS = Object.freeze({
   up: Object.freeze({
@@ -127,6 +134,37 @@ function createDieMesh(useShadows, resources, dieGeometry, pipGeometry, pipMater
   return group;
 }
 
+function createTargetPipPositions(value) {
+  const a = 0.10;
+  const positions = {
+    1: [[0, 0]],
+    2: [[-a, a], [a, -a]],
+    3: [[-a, a], [0, 0], [a, -a]],
+    4: [[-a, a], [a, a], [-a, -a], [a, -a]],
+    5: [[-a, a], [a, a], [0, 0], [-a, -a], [a, -a]],
+    6: [[-a, a], [a, a], [-a, 0], [a, 0], [-a, -a], [a, -a]]
+  };
+  return positions[value];
+}
+
+function createTargetMarker(target, ringGeometry, pipGeometry, ringMaterial, pipMaterial) {
+  const group = new THREE.Group();
+  const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+  ring.rotation.x = -Math.PI / 2;
+  group.add(ring);
+
+  for (const [u, v] of createTargetPipPositions(target.value)) {
+    const pip = new THREE.Mesh(pipGeometry, pipMaterial);
+    pip.rotation.x = -Math.PI / 2;
+    pip.position.set(u, 0.006, v);
+    group.add(pip);
+  }
+
+  group.position.copy(gridToWorld(target.row, target.column, FLOOR_Y + 0.11));
+  group.userData.targetId = target.id;
+  return group;
+}
+
 function createPlayer(useShadows, resources) {
   const player = new THREE.Group();
   const yellow = trackResource(resources, new THREE.MeshStandardMaterial({
@@ -192,6 +230,9 @@ export class WebGLSaisupi {
     this.getNow = typeof options.now === 'function'
       ? options.now
       : () => performance.now();
+    this.random = typeof options.random === 'function'
+      ? options.random
+      : Math.random;
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0b1018);
@@ -227,9 +268,32 @@ export class WebGLSaisupi {
       color: 0x17130f,
       roughness: 0.72
     }));
+    this.targetRingGeometry = trackResource(
+      this.resources,
+      new THREE.RingGeometry(0.27, 0.33, 32)
+    );
+    this.targetPipGeometry = trackResource(
+      this.resources,
+      new THREE.CircleGeometry(0.045, 12)
+    );
+    this.targetRingMaterial = trackResource(this.resources, new THREE.MeshStandardMaterial({
+      color: 0xffd978,
+      emissive: 0xff9d1a,
+      emissiveIntensity: 0.75,
+      roughness: 0.36
+    }));
+    this.targetPipMaterial = trackResource(this.resources, new THREE.MeshStandardMaterial({
+      color: 0xfff6cc,
+      emissive: 0xffc44f,
+      emissiveIntensity: 1.1,
+      roughness: 0.28
+    }));
 
     this.dice = new Map();
     this.session = new SaisupiSession();
+    this.clock = new SaisupiClock({ now: () => this.getGameTime() });
+    this.targetRun = null;
+    this.targetMarkers = new Map();
     this.player = createPlayer(this.performanceProfile.shadows, this.resources);
     this.scene.add(this.player);
     this.playerRow = INITIAL_PLAYER_POSITION.row;
@@ -381,6 +445,9 @@ export class WebGLSaisupi {
     this.cancelAnimationWaiters();
     this.animationFrameTasks.clear();
     this.cancelFrame();
+    this.clock.reset();
+    this.targetRun = null;
+    this.removeTargetMarkers();
 
     for (const die of this.dice.values()) this.removeDie(die);
     this.dice.clear();
@@ -406,6 +473,30 @@ export class WebGLSaisupi {
     this.requestFrame();
   }
 
+  removeTargetMarkers() {
+    for (const marker of this.targetMarkers.values()) this.scene.remove(marker);
+    this.targetMarkers.clear();
+  }
+
+  prepareTargets() {
+    if (this.targetRun) return this.targetRun;
+    const run = generateTargetRun({ random: this.random });
+    this.targetRun = run;
+    this.session.setTargets(run.targets);
+    for (const target of run.targets) {
+      const marker = createTargetMarker(
+        target,
+        this.targetRingGeometry,
+        this.targetPipGeometry,
+        this.targetRingMaterial,
+        this.targetPipMaterial
+      );
+      this.targetMarkers.set(target.id, marker);
+      this.scene.add(marker);
+    }
+    return run;
+  }
+
   setActive(active) {
     this.renderActive = Boolean(active);
     if (!this.renderActive) {
@@ -417,6 +508,8 @@ export class WebGLSaisupi {
 
   getSnapshot() {
     const activeDie = this.activeKey ? this.dice.get(this.activeKey) : null;
+    const clockSnapshot = this.clock.getSnapshot(this.getGameTime());
+    const progress = this.session.getTargetProgress();
     return Object.freeze({
       phase: this.session.phase,
       playerRow: this.playerRow,
@@ -425,6 +518,13 @@ export class WebGLSaisupi {
       busy: this.session.busy,
       buriedDie: [...this.dice.values()].find((die) => die.state === 'buried')?.id ?? null,
       upperFace: activeDie?.top ?? null,
+      targetLayoutVersion: this.targetRun?.layoutVersion ?? TARGET_LAYOUT_VERSION,
+      targetCount: this.targetRun?.targets.length ?? TARGET_COUNT,
+      completedTargetCount: progress.completed,
+      completedTargetIds: Object.freeze([...this.session.completedTargetIds]),
+      elapsedMs: clockSnapshot.elapsedMs,
+      scoreCentiseconds: clockSnapshot.scoreCentiseconds,
+      displayTime: clockSnapshot.displayTime,
       contextLost: this.contextLost
     });
   }
@@ -476,6 +576,7 @@ export class WebGLSaisupi {
   }
 
   restoreStableAnimationState() {
+    const previousPhase = this.session.phase;
     for (const die of this.dice.values()) {
       if (die.motionStartPosition) {
         die.mesh.position.copy(die.motionStartPosition);
@@ -488,11 +589,18 @@ export class WebGLSaisupi {
     }
     this.player.rotation.z = 0;
     this.placePlayer();
-    this.syncSessionPhase();
+    if (
+      previousPhase === P1_PHASES.RUNNING
+      || previousPhase === P1_PHASES.FINISHED
+    ) {
+      this.session.setPhase(previousPhase);
+    } else {
+      this.syncSessionPhase();
+    }
   }
 
   interruptAnimations() {
-    this.epoch = this.session.invalidate();
+    this.epoch = this.session.invalidateAnimation();
     this.cancelAnimationWaiters();
     this.restoreStableAnimationState();
   }
@@ -501,6 +609,11 @@ export class WebGLSaisupi {
     if (!DIRECTIONS[directionName] || !this.renderActive || !this.isVisible) return;
     if (this.contextLost) {
       this.callbacks.onMessage?.('3D表示を復帰するまで操作できません');
+      return;
+    }
+    if (this.session.phase === P1_PHASES.FINISHED) return;
+    if (this.session.phase === P1_PHASES.RISING) {
+      this.callbacks.onMessage?.('サイコロが上がりきるまで待ちます');
       return;
     }
 
@@ -582,13 +695,28 @@ export class WebGLSaisupi {
     this.faceDirection(directionName);
     this.session.setBusy(false);
 
+    let preparedRun = null;
     if (wasBuried && this.activeKey) {
+      try {
+        preparedRun = this.prepareTargets();
+      } catch (error) {
+        console.error(error);
+        this.reset();
+        this.callbacks.onMessage?.('目標を準備できませんでした。もう一度試してください');
+        return;
+      }
       targetDie.state = 'rising';
       targetDie.riseStartedAt = this.getGameTime();
       targetDie.riseStartY = targetDie.mesh.position.y;
       this.session.setPhase(P1_PHASES.RISING);
       this.callbacks.onClimbComplete?.();
       this.callbacks.onMessage?.('サイコロに登りました。サイコロが上がります');
+      this.callbacks.onTargetsReady?.({
+        layoutVersion: preparedRun.layoutVersion,
+        generationVersion: preparedRun.generationVersion,
+        targets: preparedRun.targets,
+        snapshot: this.getSnapshot()
+      });
     } else if (this.activeKey) {
       this.session.setPhase(P1_PHASES.READY);
     } else {
@@ -622,6 +750,32 @@ export class WebGLSaisupi {
     this.callbacks.onMoveComplete?.(this.getSnapshot());
     this.callbacks.onMessage?.('床を移動中。近くのサイコロへ向かいます');
     this.consumeQueue();
+  }
+
+  handleTargetLanding(die, landedAt) {
+    if (!this.targetRun || this.session.phase !== P1_PHASES.RUNNING) return null;
+    const target = judgeTargetLanding({
+      session: this.session,
+      targets: this.targetRun.targets,
+      row: die.row,
+      column: die.column,
+      upperFace: die.top
+    });
+    if (!target) return null;
+
+    const marker = this.targetMarkers.get(target.id);
+    if (marker) marker.visible = false;
+
+    let finished = false;
+    if (this.session.isRunComplete()) {
+      const elapsed = this.clock.finish(landedAt);
+      finished = elapsed !== null && this.session.finish(landedAt);
+    }
+
+    const snapshot = this.getSnapshot();
+    this.callbacks.onTargetHit?.({ target, snapshot });
+    if (finished) this.callbacks.onFinished?.({ target, snapshot });
+    return { target, finished, snapshot };
   }
 
   animatePlayerMove(start, end, duration, jumpHeight, epoch) {
@@ -731,13 +885,17 @@ export class WebGLSaisupi {
     this.player.position.set(endPosition.x, PLAYER_Y, endPosition.z);
     this.player.rotation.z = 0;
     this.faceDirection(directionName);
+    this.session.setBusy(false);
+    const wasRunning = this.session.phase === P1_PHASES.RUNNING;
     this.callbacks.onRoll?.({
       top: die.top,
       row: die.row,
       column: die.column
     });
-    this.session.setBusy(false);
-    this.session.setPhase(P1_PHASES.READY);
+    this.handleTargetLanding(die, this.getGameTime());
+    if (this.session.phase !== P1_PHASES.FINISHED) {
+      this.session.setPhase(wasRunning ? P1_PHASES.RUNNING : P1_PHASES.READY);
+    }
     this.callbacks.onMoveComplete?.(this.getSnapshot());
     this.consumeQueue();
   }
@@ -768,15 +926,20 @@ export class WebGLSaisupi {
         die.mesh.userData.bodyMaterial.emissive.setHex(0x000000);
         die.mesh.userData.bodyMaterial.emissiveIntensity = 0;
         if (this.activeKey === key) this.player.position.y = PLAYER_Y;
-        this.session.setPhase(P1_PHASES.READY);
+        const exposedAt = now;
+        if (this.session.startRunning(exposedAt)) {
+          this.clock.start(exposedAt);
+        } else {
+          this.session.setPhase(P1_PHASES.READY);
+        }
         this.callbacks.onExposed?.({
           row: die.row,
           column: die.column,
-          upperFace: die.top
+          upperFace: die.top,
+          startedAt: this.clock.startedAt,
+          snapshot: this.getSnapshot()
         });
-        this.callbacks.onMessage?.(
-          'サイコロが完全に露出しました。目標表示は次の工程で追加します'
-        );
+        this.callbacks.onMessage?.('サイコロが完全に露出しました。計測を開始します');
       }
     }
   }
@@ -851,6 +1014,9 @@ export class WebGLSaisupi {
     const now = this.getGameTime();
     this.updateRising(now);
     this.runAnimationFrameTasks();
+    if (this.session.phase === P1_PHASES.RUNNING) {
+      this.callbacks.onTick?.(this.getSnapshot());
+    }
 
     const elapsed = this.renderClock.getElapsedTime();
     const reducedMotion = this.shouldReduceMotion();
@@ -902,6 +1068,7 @@ export class WebGLSaisupi {
     this.canvas.removeEventListener('webglcontextlost', this.handleContextLost);
     this.canvas.removeEventListener('webglcontextrestored', this.handleContextRestored);
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    this.removeTargetMarkers();
     for (const die of this.dice.values()) this.removeDie(die);
     this.dice.clear();
     disposeResources(this.resources);

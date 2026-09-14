@@ -14,6 +14,8 @@ test('P1の画面は新作の開始導線だけを持つ', () => {
   assert.doesNotMatch(index, /300秒|消去|連鎖|補充|TIME UP/);
   assert.match(main, /directionFromDiagonalSwipe/);
   assert.match(main, /ArrowUp/);
+  assert.match(index, /id="run-time"/);
+  assert.match(index, /id="target-progress"/);
 });
 
 test('旧ゲームのルール実行経路を新作へ持ち込まない', () => {
@@ -36,4 +38,9 @@ test('P1の見た目・操作の継承点を保持する', () => {
   assert.match(main, /shouldReduceMotion/);
   assert.match(main, /onVisibilityChange/);
   assert.match(main, /data-direction/);
+  assert.match(game, /generateTargetRun/);
+  assert.match(game, /SaisupiClock/);
+  assert.match(game, /onTick/);
+  assert.match(game, /RUNNING/);
+  assert.match(game, /FINISHED/);
 });
