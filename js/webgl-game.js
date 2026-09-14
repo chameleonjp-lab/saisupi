@@ -26,7 +26,11 @@ import {
 import { getPerformanceProfile } from './performance-profile.js';
 import { P1_PHASES, SaisupiSession } from './saisupi-session.js';
 import { SaisupiClock } from './saisupi-clock.js';
-import { TARGET_COUNT, findTargetAt, generateTargetRun } from './saisupi-targets.js';
+import {
+  TARGET_COUNT,
+  generateTargetRun,
+  judgeTargetLanding
+} from './saisupi-targets.js';
 
 const DIRECTIONS = Object.freeze({
   up: Object.freeze({
@@ -750,10 +754,14 @@ export class WebGLSaisupi {
 
   handleTargetLanding(die, landedAt) {
     if (!this.targetRun || this.session.phase !== P1_PHASES.RUNNING) return null;
-    const target = findTargetAt(this.targetRun.targets, die.row, die.column);
-    if (!target || target.value !== die.top || !this.session.completeTarget(target.id)) {
-      return null;
-    }
+    const target = judgeTargetLanding({
+      session: this.session,
+      targets: this.targetRun.targets,
+      row: die.row,
+      column: die.column,
+      upperFace: die.top
+    });
+    if (!target) return null;
 
     const marker = this.targetMarkers.get(target.id);
     if (marker) marker.visible = false;
@@ -1060,6 +1068,7 @@ export class WebGLSaisupi {
     this.canvas.removeEventListener('webglcontextlost', this.handleContextLost);
     this.canvas.removeEventListener('webglcontextrestored', this.handleContextRestored);
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    this.removeTargetMarkers();
     for (const die of this.dice.values()) this.removeDie(die);
     this.dice.clear();
     disposeResources(this.resources);

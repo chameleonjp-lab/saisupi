@@ -70,3 +70,11 @@ export function generateTargetRun({
 export function findTargetAt(targets, row, column) {
   return targets.find((target) => target.row === row && target.column === column) ?? null;
 }
+
+export function judgeTargetLanding({ session, targets, row, column, upperFace }) {
+  const target = findTargetAt(targets, row, column);
+  if (!target || target.value !== upperFace || !session.completeTarget(target.id)) {
+    return null;
+  }
+  return target;
+}

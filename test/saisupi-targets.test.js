@@ -9,8 +9,10 @@ import {
   TARGET_COUNT,
   findTargetAt,
   generateTargetRun,
+  judgeTargetLanding,
   validateTargetPositions
 } from '../js/saisupi-targets.js';
+import { P1_PHASES, SaisupiSession } from '../js/saisupi-session.js';
 
 test('仮配置Aは盤面内の重複しない10座標を持つ', () => {
   const positions = validateTargetPositions();
@@ -63,4 +65,43 @@ test('不正な位置と乱数を開始前に拒否する', () => {
     () => generateTargetRun({ random: () => 1 }),
     /0以上1未満/
   );
+});
+
+test('移動完了後の座標と上面が一致した目標だけを一度達成する', () => {
+  const run = generateTargetRun({ random: () => 0 });
+  const session = new SaisupiSession();
+  session.setTargets(run.targets);
+  session.setPhase(P1_PHASES.RISING);
+  assert.equal(session.startRunning(1000), true);
+
+  const target = run.targets[0];
+  assert.equal(judgeTargetLanding({
+    session,
+    targets: run.targets,
+    row: target.row,
+    column: target.column,
+    upperFace: target.value
+  }), target);
+  assert.equal(session.getTargetProgress().completed, 1);
+  assert.equal(judgeTargetLanding({
+    session,
+    targets: run.targets,
+    row: target.row,
+    column: target.column,
+    upperFace: target.value
+  }), null);
+  assert.equal(judgeTargetLanding({
+    session,
+    targets: run.targets,
+    row: run.targets[1].row,
+    column: run.targets[1].column,
+    upperFace: 2
+  }), null);
+  assert.equal(judgeTargetLanding({
+    session,
+    targets: run.targets,
+    row: target.row,
+    column: target.column + 1,
+    upperFace: target.value
+  }), null);
 });
