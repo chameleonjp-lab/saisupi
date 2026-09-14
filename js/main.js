@@ -15,6 +15,8 @@ const canvas = document.querySelector('#game-canvas');
 const loading = document.querySelector('#loading');
 const message = document.querySelector('#message');
 const phaseStatus = document.querySelector('#phase-status');
+const runTime = document.querySelector('#run-time');
+const targetProgress = document.querySelector('#target-progress');
 const playerNameInput = document.querySelector('#player-name-input');
 const playerNameError = document.querySelector('#player-name-error');
 const homeError = document.querySelector('#home-error');
@@ -77,6 +79,8 @@ function showHome() {
   homeScreen.hidden = false;
   app.dataset.screen = 'home';
   phaseStatus.textContent = '待機中';
+  runTime.textContent = '0.00秒';
+  targetProgress.textContent = '達成 0/10';
   activeGameTitle.textContent = 'サイコロへ登る';
   setHomeError();
   window.setTimeout(() => startButton.focus(), 0);
@@ -102,9 +106,16 @@ function updateFromSnapshot(snapshot) {
     WAITING_FOR_CLIMB: '待機中',
     CLIMBING: '登っています',
     RISING: '上昇中',
-    READY: '移動できます'
+    READY: '移動できます',
+    RUNNING: '計測中',
+    FINISHED: '完了'
   };
   phaseStatus.textContent = labels[snapshot.phase] ?? '操作中';
+  runTime.textContent = snapshot.displayTime ?? '0.00秒';
+  targetProgress.textContent = '達成 '
+    + String(snapshot.completedTargetCount ?? 0)
+    + '/'
+    + String(snapshot.targetCount ?? 10);
 }
 
 const callbacks = {
@@ -120,13 +131,27 @@ const callbacks = {
   onClimbComplete: () => {
     phaseStatus.textContent = '上昇中';
   },
-  onExposed: () => {
-    phaseStatus.textContent = '移動できます';
+  onTargetsReady: ({ snapshot }) => {
+    updateFromSnapshot(snapshot);
+  },
+  onExposed: ({ snapshot }) => {
+    updateFromSnapshot(snapshot);
+    setMessage('計測を開始しました。サイコロを目標へ合わせます');
   },
   onRoll: ({ top }) => {
     phaseStatus.textContent = '移動できます';
     setMessage('サイコロの上面は' + String(top) + 'です');
   },
+  onTargetHit: ({ snapshot }) => {
+    updateFromSnapshot(snapshot);
+    setMessage('目標をそろえました');
+  },
+  onFinished: ({ snapshot }) => {
+    updateFromSnapshot(snapshot);
+    setMessage('完了。記録は' + snapshot.displayTime + 'です');
+  },
+  onTick: updateFromSnapshot,
+  onReset: updateFromSnapshot,
   onContextLost: () => {
     phaseStatus.textContent = '3D復旧待ち';
     showWebGLError('3D表示を復旧するまで操作できません');

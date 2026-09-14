@@ -258,6 +258,39 @@ h2 {
   z-index: 2;
 }
 
+.run-hud {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 3;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  max-width: calc(100% - 24px);
+  padding: 8px 13px;
+  border: 1px solid rgba(255, 220, 143, 0.24);
+  border-radius: 999px;
+  transform: translateX(-50%);
+  color: #f6f0df;
+  background: rgba(9, 11, 17, 0.76);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+#run-time {
+  color: #ffdc7a;
+  font-size: clamp(1.05rem, 5vw, 1.45rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+}
+
+#target-progress {
+  color: #d8deeb;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
 .loading {
   inset: 0;
   display: grid;

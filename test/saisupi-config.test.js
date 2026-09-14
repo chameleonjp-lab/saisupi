@@ -7,7 +7,11 @@ import {
   DICE_SIZE,
   INITIAL_BURIED_DIE,
   INITIAL_PLAYER_POSITION,
-  RISE_DURATION
+  RISE_DURATION,
+  SAISUPI_RULE_VERSION,
+  TARGET_GENERATION_VERSION,
+  TARGET_LAYOUT_VERSION,
+  TARGET_POSITIONS
 } from '../js/saisupi-config.js';
 
 test('P1は7×7盤面の中央に埋まったサイコロを置く', () => {
@@ -24,3 +28,9 @@ test('P1は7×7盤面の中央に埋まったサイコロを置く', () => {
   assert.equal(RISE_DURATION, 720);
 });
 
+test('P2の暫定設定は版付きで10座標を公開する', () => {
+  assert.equal(SAISUPI_RULE_VERSION, 'p2-target-time-provisional-v1');
+  assert.equal(TARGET_LAYOUT_VERSION, 'layout-a-provisional-v1');
+  assert.equal(TARGET_GENERATION_VERSION, 'independent-uniform-v1');
+  assert.equal(TARGET_POSITIONS.length, 10);
+});
