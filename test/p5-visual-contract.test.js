@@ -27,8 +27,11 @@ test('10個目は成功演出を出さず、結果画面へ直ちに進む', () 
 test('ゲーム内の描画品質向上の部品を保持する', () => {
   assert.match(game, /MeshPhysicalMaterial/u);
   assert.match(game, /dieEdgeGeometry/u);
-  assert.match(game, /targetPipGlowGeometry/u);
-  assert.match(game, /lightPillarRingGeometry/u);
+  assert.match(game, /targetPadEdgeGeometry/u);
+  assert.match(game, /createLightFrameBars/u);
+  assert.match(game, /BOARD_TILE_SIZE = 0\.88/u);
+  assert.doesNotMatch(game, /targetHaloGeometry|targetRingGeometry|targetPipGlowGeometry/u);
+  assert.doesNotMatch(game, /lightPillarRingGeometry/u);
   assert.match(game, /updateTargetMarkers/u);
   assert.match(game, /new THREE\.PointLight/u);
 });

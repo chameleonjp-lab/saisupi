@@ -32,7 +32,7 @@ test('一致時の光柱とテッテレーSEは3秒の成功イベントへ接�
   assert.match(game, /startLightPillar\(target, landedAt\)/u);
   assert.match(game, /LIGHT_PILLAR_DURATION/u);
   assert.match(game, /updateLightPillars\(now\)/u);
-  assert.match(game, /targetHaloMaterial/u);
+  assert.match(game, /targetPadEdgeMaterial/u);
   assert.match(game, /mesh\.position\.y = state\.height \/ 2/u);
   assert.match(main, /soundEffects\.playClear\(\)/u);
   assert.match(sound, /\[392, 523\.25, 659\.25\]/u);
