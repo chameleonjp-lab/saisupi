@@ -67,6 +67,12 @@ const DIRECTIONS = Object.freeze({
   })
 });
 
+const BOARD_TILE_SIZE = 0.88;
+const TARGET_PAD_SIZE = 0.74;
+const TARGET_PIP_OFFSET = 0.14;
+const LIGHT_PILLAR_OUTER_BAR_THICKNESS = 0.060;
+const LIGHT_PILLAR_CORE_BAR_THICKNESS = 0.024;
+
 function trackResource(resources, resource) {
   resources.add(resource);
   return resource;
@@ -85,10 +91,6 @@ function easeInOutCubic(value) {
   return value < 0.5
     ? 4 * value * value * value
     : 1 - Math.pow(-2 * value + 2, 3) / 2;
-}
-
-function easeOutCubic(value) {
-  return 1 - Math.pow(1 - value, 3);
 }
 
 function createPipPositions(value) {
@@ -163,7 +165,7 @@ function createDieMesh(
 }
 
 function createTargetPipPositions(value) {
-  const a = 0.10;
+  const a = TARGET_PIP_OFFSET;
   const positions = {
     1: [[0, 0]],
     2: [[-a, a], [a, -a]],
@@ -177,14 +179,10 @@ function createTargetPipPositions(value) {
 
 function createTargetMarker(target, {
   padGeometry,
-  haloGeometry,
-  ringGeometry,
-  pipGlowGeometry,
-  pipGeometry,
+  padEdgeGeometry,
   padMaterial,
-  haloMaterial,
-  ringMaterial,
-  pipGlowMaterial,
+  padEdgeMaterial,
+  pipGeometry,
   pipMaterial
 }) {
   const group = new THREE.Group();
@@ -192,38 +190,42 @@ function createTargetMarker(target, {
   pad.renderOrder = 0;
   group.add(pad);
 
-  const halo = new THREE.Mesh(haloGeometry, haloMaterial);
-  halo.rotation.x = -Math.PI / 2;
-  halo.position.y = 0.018;
-  halo.renderOrder = 1;
-  group.add(halo);
-
-  const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 0.025;
-  ring.renderOrder = 2;
-  group.add(ring);
+  const padEdge = new THREE.LineSegments(padEdgeGeometry, padEdgeMaterial);
+  padEdge.scale.setScalar(1.002);
+  padEdge.renderOrder = 1;
+  group.add(padEdge);
 
   for (const [u, v] of createTargetPipPositions(target.value)) {
-    const glow = new THREE.Mesh(pipGlowGeometry, pipGlowMaterial);
-    glow.rotation.x = -Math.PI / 2;
-    glow.position.set(u, 0.031, v);
-    glow.renderOrder = 3;
-    group.add(glow);
-
     const pip = new THREE.Mesh(pipGeometry, pipMaterial);
     pip.rotation.x = -Math.PI / 2;
-    pip.position.set(u, 0.038, v);
-    pip.renderOrder = 4;
+    pip.position.set(u, 0.028, v);
+    pip.renderOrder = 2;
     group.add(pip);
   }
 
-  group.position.copy(gridToWorld(target.row, target.column, FLOOR_Y + 0.065));
+  group.position.copy(gridToWorld(target.row, target.column, FLOOR_Y + 0.060));
   group.userData.targetId = target.id;
-  group.userData.halo = halo;
-  group.userData.ring = ring;
   group.userData.pulseOffset = (Number.parseInt(String(target.id).slice(-2), 10) || 1) * 0.31;
   return group;
+}
+
+function createLightFrameBars(geometry, material, size, thickness, renderOrder) {
+  const half = size / 2 - thickness / 2;
+  const bars = [];
+  for (const z of [-half, half]) {
+    const bar = new THREE.Mesh(geometry, material);
+    bar.position.z = z;
+    bar.renderOrder = renderOrder;
+    bars.push(bar);
+  }
+  for (const x of [-half, half]) {
+    const bar = new THREE.Mesh(geometry, material);
+    bar.rotation.y = Math.PI / 2;
+    bar.position.x = x;
+    bar.renderOrder = renderOrder;
+    bars.push(bar);
+  }
+  return bars;
 }
 
 function setDieFlashIntensity(die, intensity) {
@@ -382,46 +384,27 @@ export class WebGLSaisupi {
     }));
     this.targetPadGeometry = trackResource(
       this.resources,
-      new THREE.CylinderGeometry(0.43, 0.43, 0.035, 48)
+      new RoundedBoxGeometry(TARGET_PAD_SIZE, 0.024, TARGET_PAD_SIZE, 6, 0.012)
     );
-    this.targetHaloGeometry = trackResource(
+    this.targetPadEdgeGeometry = trackResource(
       this.resources,
-      new THREE.CircleGeometry(0.43, 48)
-    );
-    this.targetRingGeometry = trackResource(
-      this.resources,
-      new THREE.RingGeometry(0.27, 0.33, 48)
+      new THREE.EdgesGeometry(this.targetPadGeometry, 22)
     );
     this.targetPipGeometry = trackResource(
       this.resources,
-      new THREE.CircleGeometry(0.064, 24)
-    );
-    this.targetPipGlowGeometry = trackResource(
-      this.resources,
-      new THREE.CircleGeometry(0.105, 24)
+      new THREE.CircleGeometry(0.070, 24)
     );
     this.targetPadMaterial = trackResource(this.resources, new THREE.MeshStandardMaterial({
-      color: 0x3e2c1b,
-      roughness: 0.42,
-      metalness: 0.18,
-      emissive: 0x241000,
-      emissiveIntensity: 0.22
+      color: 0x202b3c,
+      roughness: 0.52,
+      metalness: 0.12,
+      emissive: 0x11182a,
+      emissiveIntensity: 0.32
     }));
-    this.targetHaloMaterial = trackResource(this.resources, new THREE.MeshBasicMaterial({
-      color: 0xffa51f,
+    this.targetPadEdgeMaterial = trackResource(this.resources, new THREE.LineBasicMaterial({
+      color: 0xf0b84e,
       transparent: true,
-      opacity: 0.20,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      side: THREE.DoubleSide
-    }));
-    this.targetRingMaterial = trackResource(this.resources, new THREE.MeshBasicMaterial({
-      color: 0xffbd42,
-      transparent: true,
-      opacity: 0.92,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      side: THREE.DoubleSide
+      opacity: 0.72
     }));
     this.targetPipMaterial = trackResource(this.resources, new THREE.MeshBasicMaterial({
       color: 0xfff6cc,
@@ -431,25 +414,25 @@ export class WebGLSaisupi {
       blending: THREE.AdditiveBlending,
       side: THREE.DoubleSide
     }));
-    this.targetPipGlowMaterial = trackResource(this.resources, new THREE.MeshBasicMaterial({
-      color: 0xffbd42,
-      transparent: true,
-      opacity: 0.30,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      side: THREE.DoubleSide
-    }));
-    this.lightPillarGeometry = trackResource(
+    this.lightPillarOuterBarGeometry = trackResource(
       this.resources,
-      new THREE.CylinderGeometry(0.30, 0.30, 1, 32, 1, true)
+      new RoundedBoxGeometry(
+        BOARD_TILE_SIZE,
+        1,
+        LIGHT_PILLAR_OUTER_BAR_THICKNESS,
+        6,
+        0.022
+      )
     );
-    this.lightPillarCoreGeometry = trackResource(
+    this.lightPillarCoreBarGeometry = trackResource(
       this.resources,
-      new THREE.CylinderGeometry(0.11, 0.16, 1, 24, 1, true)
-    );
-    this.lightPillarRingGeometry = trackResource(
-      this.resources,
-      new THREE.TorusGeometry(0.25, 0.024, 8, 48)
+      new RoundedBoxGeometry(
+        BOARD_TILE_SIZE,
+        1,
+        LIGHT_PILLAR_CORE_BAR_THICKNESS,
+        6,
+        0.010
+      )
     );
 
     this.dice = new Map();
@@ -589,7 +572,7 @@ export class WebGLSaisupi {
 
     const tileGeometry = trackResource(
       this.resources,
-      new RoundedBoxGeometry(0.92, 0.10, 0.92, 6, 0.08)
+      new RoundedBoxGeometry(BOARD_TILE_SIZE, 0.10, BOARD_TILE_SIZE, 6, 0.06)
     );
     const materials = [
       trackResource(this.resources, new THREE.MeshStandardMaterial({
@@ -735,40 +718,35 @@ export class WebGLSaisupi {
       blending: THREE.AdditiveBlending,
       side: THREE.DoubleSide
     }));
-    const ringMaterial = trackResource(this.resources, new THREE.MeshBasicMaterial({
-      color: 0xffc95c,
-      transparent: true,
-      opacity: 0.86,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      side: THREE.DoubleSide
-    }));
     const group = new THREE.Group();
-    const outerMesh = new THREE.Mesh(this.lightPillarGeometry, outerMaterial);
-    const coreMesh = new THREE.Mesh(this.lightPillarCoreGeometry, coreMaterial);
-    const ringMesh = new THREE.Mesh(this.lightPillarRingGeometry, ringMaterial);
-    ringMesh.rotation.x = Math.PI / 2;
-    ringMesh.scale.setScalar(0.72);
-    ringMesh.position.y = 0.028;
-    ringMesh.renderOrder = 3;
-    group.add(ringMesh);
+    const outerMeshes = createLightFrameBars(
+      this.lightPillarOuterBarGeometry,
+      outerMaterial,
+      BOARD_TILE_SIZE,
+      LIGHT_PILLAR_OUTER_BAR_THICKNESS,
+      4
+    );
+    const coreMeshes = createLightFrameBars(
+      this.lightPillarCoreBarGeometry,
+      coreMaterial,
+      BOARD_TILE_SIZE,
+      LIGHT_PILLAR_CORE_BAR_THICKNESS,
+      5
+    );
+    const meshes = [...outerMeshes, ...coreMeshes];
     const initialState = getLightPillarState(0);
-    for (const [mesh, renderOrder] of [[outerMesh, 4], [coreMesh, 5]]) {
+    for (const mesh of meshes) {
       mesh.scale.y = initialState.height;
       mesh.position.y = initialState.height / 2;
-      mesh.renderOrder = renderOrder;
       group.add(mesh);
     }
-    group.position.copy(gridToWorld(target.row, target.column, FLOOR_Y + 0.065));
+    group.position.copy(gridToWorld(target.row, target.column, FLOOR_Y + 0.050));
     group.userData.targetId = target.id;
     this.scene.add(group);
     const effect = {
       group,
-      meshes: [outerMesh, coreMesh],
-      ring: ringMesh,
-      ringMaterial,
-      ringDuration: 640,
-      materials: [outerMaterial, coreMaterial, ringMaterial],
+      meshes,
+      materials: [outerMaterial, coreMaterial],
       startedAt,
       duration: LIGHT_PILLAR_DURATION
     };
@@ -791,14 +769,6 @@ export class WebGLSaisupi {
       }
       effect.materials[0].opacity = state.opacity;
       effect.materials[1].opacity = Math.min(0.66, state.opacity * 1.45);
-      const ringProgress = Math.min(
-        1,
-        Math.max(0, elapsed / effect.ringDuration)
-      );
-      const ringScale = 0.72 + easeOutCubic(ringProgress) * 1.65;
-      effect.ring.scale.setScalar(ringScale);
-      effect.ring.rotation.z = elapsed * 0.0018;
-      effect.ringMaterial.opacity = 0.86 * (1 - ringProgress);
     }
   }
 
@@ -810,14 +780,10 @@ export class WebGLSaisupi {
     for (const target of run.targets) {
       const marker = createTargetMarker(target, {
         padGeometry: this.targetPadGeometry,
-        haloGeometry: this.targetHaloGeometry,
-        ringGeometry: this.targetRingGeometry,
-        pipGlowGeometry: this.targetPipGlowGeometry,
-        pipGeometry: this.targetPipGeometry,
+        padEdgeGeometry: this.targetPadEdgeGeometry,
         padMaterial: this.targetPadMaterial,
-        haloMaterial: this.targetHaloMaterial,
-        ringMaterial: this.targetRingMaterial,
-        pipGlowMaterial: this.targetPipGlowMaterial,
+        padEdgeMaterial: this.targetPadEdgeMaterial,
+        pipGeometry: this.targetPipGeometry,
         pipMaterial: this.targetPipMaterial
       });
       this.targetMarkers.set(target.id, marker);
@@ -833,10 +799,8 @@ export class WebGLSaisupi {
       const pulse = reduceMotion
         ? 0.5
         : 0.5 + 0.5 * Math.sin(elapsedSeconds * 3.4 + marker.userData.pulseOffset);
-      const markerScale = 1 + pulse * 0.035;
+      const markerScale = 1 + pulse * 0.018;
       marker.scale.setScalar(markerScale);
-      marker.userData.halo.scale.setScalar(1 + pulse * 0.12);
-      marker.userData.ring.scale.setScalar(1 + pulse * 0.05);
     }
   }
 
