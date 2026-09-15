@@ -704,9 +704,13 @@ button:disabled {
   bottom: max(10px, env(safe-area-inset-bottom));
   left: max(12px, env(safe-area-inset-left));
   z-index: 8;
-  display: flex;
+  display: none;
   justify-content: flex-end;
   pointer-events: none;
+}
+
+.app[data-screen="playing"] ~ .app-footer {
+  display: flex;
 }
 
 .sound-toggle {

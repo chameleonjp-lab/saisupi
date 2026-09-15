@@ -87,6 +87,10 @@ function easeInOutCubic(value) {
     : 1 - Math.pow(-2 * value + 2, 3) / 2;
 }
 
+function easeOutCubic(value) {
+  return 1 - Math.pow(1 - value, 3);
+}
+
 function createPipPositions(value) {
   const a = 0.22;
   const positions = {
@@ -112,16 +116,27 @@ function addFacePips(group, value, face, pipGeometry, pipMaterial) {
     if (face === 'left') pip.position.set(-edge, v, u);
     if (face === 'right') pip.position.set(edge, v, -u);
 
+    pip.renderOrder = 2;
     group.add(pip);
   }
 }
 
-function createDieMesh(useShadows, resources, dieGeometry, pipGeometry, pipMaterial) {
+function createDieMesh(
+  useShadows,
+  resources,
+  dieGeometry,
+  dieEdgeGeometry,
+  dieEdgeMaterial,
+  pipGeometry,
+  pipMaterial
+) {
   const group = new THREE.Group();
-  const bodyMaterial = new THREE.MeshStandardMaterial({
-    color: 0xf2ead6,
-    roughness: 0.48,
-    metalness: 0.02,
+  const bodyMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xf4ead5,
+    roughness: 0.36,
+    metalness: 0.04,
+    clearcoat: 0.22,
+    clearcoatRoughness: 0.24,
     emissive: 0x000000,
     emissiveIntensity: 0
   });
@@ -130,6 +145,11 @@ function createDieMesh(useShadows, resources, dieGeometry, pipGeometry, pipMater
   body.castShadow = useShadows;
   body.receiveShadow = useShadows;
   group.add(body);
+
+  const edge = new THREE.LineSegments(dieEdgeGeometry, dieEdgeMaterial);
+  edge.scale.setScalar(1.002);
+  edge.renderOrder = 1;
+  group.add(edge);
 
   addFacePips(group, 1, 'top', pipGeometry, pipMaterial);
   addFacePips(group, 6, 'bottom', pipGeometry, pipMaterial);
@@ -155,38 +175,54 @@ function createTargetPipPositions(value) {
   return positions[value];
 }
 
-function createTargetMarker(
-  target,
+function createTargetMarker(target, {
+  padGeometry,
   haloGeometry,
   ringGeometry,
+  pipGlowGeometry,
   pipGeometry,
+  padMaterial,
   haloMaterial,
   ringMaterial,
+  pipGlowMaterial,
   pipMaterial
-) {
+}) {
   const group = new THREE.Group();
+  const pad = new THREE.Mesh(padGeometry, padMaterial);
+  pad.renderOrder = 0;
+  group.add(pad);
+
   const halo = new THREE.Mesh(haloGeometry, haloMaterial);
   halo.rotation.x = -Math.PI / 2;
-  halo.position.y = 0.001;
+  halo.position.y = 0.018;
   halo.renderOrder = 1;
   group.add(halo);
 
   const ring = new THREE.Mesh(ringGeometry, ringMaterial);
   ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 0.004;
+  ring.position.y = 0.025;
   ring.renderOrder = 2;
   group.add(ring);
 
   for (const [u, v] of createTargetPipPositions(target.value)) {
+    const glow = new THREE.Mesh(pipGlowGeometry, pipGlowMaterial);
+    glow.rotation.x = -Math.PI / 2;
+    glow.position.set(u, 0.031, v);
+    glow.renderOrder = 3;
+    group.add(glow);
+
     const pip = new THREE.Mesh(pipGeometry, pipMaterial);
     pip.rotation.x = -Math.PI / 2;
-    pip.position.set(u, 0.008, v);
-    pip.renderOrder = 3;
+    pip.position.set(u, 0.038, v);
+    pip.renderOrder = 4;
     group.add(pip);
   }
 
-  group.position.copy(gridToWorld(target.row, target.column, FLOOR_Y + 0.11));
+  group.position.copy(gridToWorld(target.row, target.column, FLOOR_Y + 0.065));
   group.userData.targetId = target.id;
+  group.userData.halo = halo;
+  group.userData.ring = ring;
+  group.userData.pulseOffset = (Number.parseInt(String(target.id).slice(-2), 10) || 1) * 0.31;
   return group;
 }
 
@@ -204,13 +240,25 @@ function setDieFlashIntensity(die, intensity) {
 
 function createPlayer(useShadows, resources) {
   const player = new THREE.Group();
-  const yellow = trackResource(resources, new THREE.MeshStandardMaterial({
+  const yellow = trackResource(resources, new THREE.MeshPhysicalMaterial({
     color: 0xf6bd3f,
-    roughness: 0.48
+    roughness: 0.34,
+    metalness: 0.02,
+    clearcoat: 0.20,
+    clearcoatRoughness: 0.22,
+    emissive: 0x251400,
+    emissiveIntensity: 0.05
   }));
   const dark = trackResource(resources, new THREE.MeshStandardMaterial({
     color: 0x32220f,
-    roughness: 0.72
+    roughness: 0.54,
+    metalness: 0.04
+  }));
+  const eyeWhite = trackResource(resources, new THREE.MeshPhysicalMaterial({
+    color: 0xfff7e3,
+    roughness: 0.24,
+    clearcoat: 0.22,
+    clearcoatRoughness: 0.18
   }));
 
   const body = new THREE.Mesh(
@@ -229,12 +277,25 @@ function createPlayer(useShadows, resources) {
   head.castShadow = useShadows;
   player.add(head);
 
-  const eyeGeometry = trackResource(resources, new THREE.SphereGeometry(0.025, 12, 8));
+  const eyeGeometry = trackResource(resources, new THREE.SphereGeometry(0.044, 18, 12));
+  const pupilGeometry = trackResource(resources, new THREE.SphereGeometry(0.020, 14, 10));
   for (const x of [-0.065, 0.065]) {
-    const eye = new THREE.Mesh(eyeGeometry, dark);
-    eye.position.set(x, 0.60, 0.16);
+    const eye = new THREE.Mesh(eyeGeometry, eyeWhite);
+    eye.position.set(x, 0.60, 0.158);
     player.add(eye);
+
+    const pupil = new THREE.Mesh(pupilGeometry, dark);
+    pupil.position.set(x, 0.60, 0.198);
+    player.add(pupil);
   }
+
+  const mouth = new THREE.Mesh(
+    trackResource(resources, new THREE.TorusGeometry(0.042, 0.008, 8, 18, Math.PI)),
+    dark
+  );
+  mouth.position.set(0, 0.522, 0.177);
+  mouth.rotation.z = Math.PI;
+  player.add(mouth);
 
   const limbGeometry = trackResource(resources, new THREE.CapsuleGeometry(0.035, 0.18, 6, 12));
   for (const x of [-0.13, 0.13]) {
@@ -282,7 +343,7 @@ export class WebGLSaisupi {
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.12;
+    this.renderer.toneMappingExposure = 1.16;
     this.renderer.shadowMap.enabled = this.performanceProfile.shadows;
     if (this.performanceProfile.shadows) {
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -295,16 +356,34 @@ export class WebGLSaisupi {
     this.resources = new Set();
     this.dieGeometry = trackResource(
       this.resources,
-      new RoundedBoxGeometry(DICE_SIZE, DICE_SIZE, DICE_SIZE, 6, 0.13)
+      new RoundedBoxGeometry(DICE_SIZE, DICE_SIZE, DICE_SIZE, 8, 0.14)
     );
+    this.dieEdgeGeometry = trackResource(
+      this.resources,
+      new THREE.EdgesGeometry(this.dieGeometry, 22)
+    );
+    this.dieEdgeMaterial = trackResource(this.resources, new THREE.LineBasicMaterial({
+      color: 0x8d795f,
+      transparent: true,
+      opacity: 0.42
+    }));
     this.pipGeometry = trackResource(
       this.resources,
-      new THREE.SphereGeometry(0.064, 12, 8)
+      new THREE.SphereGeometry(0.067, 16, 12)
     );
-    this.pipMaterial = trackResource(this.resources, new THREE.MeshStandardMaterial({
+    this.pipMaterial = trackResource(this.resources, new THREE.MeshPhysicalMaterial({
       color: 0x17130f,
-      roughness: 0.72
+      roughness: 0.38,
+      metalness: 0.06,
+      clearcoat: 0.16,
+      clearcoatRoughness: 0.24,
+      emissive: 0x080401,
+      emissiveIntensity: 0.16
     }));
+    this.targetPadGeometry = trackResource(
+      this.resources,
+      new THREE.CylinderGeometry(0.43, 0.43, 0.035, 48)
+    );
     this.targetHaloGeometry = trackResource(
       this.resources,
       new THREE.CircleGeometry(0.43, 48)
@@ -315,12 +394,23 @@ export class WebGLSaisupi {
     );
     this.targetPipGeometry = trackResource(
       this.resources,
-      new THREE.CircleGeometry(0.052, 20)
+      new THREE.CircleGeometry(0.064, 24)
     );
+    this.targetPipGlowGeometry = trackResource(
+      this.resources,
+      new THREE.CircleGeometry(0.105, 24)
+    );
+    this.targetPadMaterial = trackResource(this.resources, new THREE.MeshStandardMaterial({
+      color: 0x3e2c1b,
+      roughness: 0.42,
+      metalness: 0.18,
+      emissive: 0x241000,
+      emissiveIntensity: 0.22
+    }));
     this.targetHaloMaterial = trackResource(this.resources, new THREE.MeshBasicMaterial({
       color: 0xffa51f,
       transparent: true,
-      opacity: 0.15,
+      opacity: 0.20,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
       side: THREE.DoubleSide
@@ -341,6 +431,14 @@ export class WebGLSaisupi {
       blending: THREE.AdditiveBlending,
       side: THREE.DoubleSide
     }));
+    this.targetPipGlowMaterial = trackResource(this.resources, new THREE.MeshBasicMaterial({
+      color: 0xffbd42,
+      transparent: true,
+      opacity: 0.30,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide
+    }));
     this.lightPillarGeometry = trackResource(
       this.resources,
       new THREE.CylinderGeometry(0.30, 0.30, 1, 32, 1, true)
@@ -348,6 +446,10 @@ export class WebGLSaisupi {
     this.lightPillarCoreGeometry = trackResource(
       this.resources,
       new THREE.CylinderGeometry(0.11, 0.16, 1, 24, 1, true)
+    );
+    this.lightPillarRingGeometry = trackResource(
+      this.resources,
+      new THREE.TorusGeometry(0.25, 0.024, 8, 48)
     );
 
     this.dice = new Map();
@@ -439,17 +541,42 @@ export class WebGLSaisupi {
     const rim = new THREE.DirectionalLight(0x6d8fd8, 1.25);
     rim.position.set(7, 5, -7);
     this.scene.add(rim);
+
+    const warmFill = new THREE.PointLight(0xffbd58, 3.6, 12, 2);
+    warmFill.position.set(-1.6, 5.2, 2.8);
+    this.scene.add(warmFill);
+
+    const coolFill = new THREE.PointLight(0x6f8fff, 2.1, 11, 2);
+    coolFill.position.set(4.6, 2.4, -4.4);
+    this.scene.add(coolFill);
   }
 
   createBoard() {
+    const environmentGeometry = trackResource(
+      this.resources,
+      new THREE.PlaneGeometry(24, 24)
+    );
+    const environmentMaterial = trackResource(this.resources, new THREE.MeshStandardMaterial({
+      color: 0x080d16,
+      roughness: 0.94,
+      metalness: 0
+    }));
+    const environment = new THREE.Mesh(environmentGeometry, environmentMaterial);
+    environment.rotation.x = -Math.PI / 2;
+    environment.position.y = -0.58;
+    environment.receiveShadow = true;
+    this.scene.add(environment);
+
     const baseGeometry = trackResource(
       this.resources,
-      new RoundedBoxGeometry(BOARD_BASE_SIZE, 0.48, BOARD_BASE_SIZE, 5, 0.24)
+      new RoundedBoxGeometry(BOARD_BASE_SIZE, 0.48, BOARD_BASE_SIZE, 8, 0.24)
     );
-    const baseMaterial = trackResource(this.resources, new THREE.MeshStandardMaterial({
-      color: 0x171a20,
-      roughness: 0.78,
-      metalness: 0.08
+    const baseMaterial = trackResource(this.resources, new THREE.MeshPhysicalMaterial({
+      color: 0x151c2a,
+      roughness: 0.58,
+      metalness: 0.12,
+      clearcoat: 0.25,
+      clearcoatRoughness: 0.32
     }));
     const base = new THREE.Mesh(
       baseGeometry,
@@ -462,16 +589,22 @@ export class WebGLSaisupi {
 
     const tileGeometry = trackResource(
       this.resources,
-      new RoundedBoxGeometry(0.92, 0.10, 0.92, 5, 0.08)
+      new RoundedBoxGeometry(0.92, 0.10, 0.92, 6, 0.08)
     );
     const materials = [
       trackResource(this.resources, new THREE.MeshStandardMaterial({
-        color: 0x30343b,
-        roughness: 0.82
+        color: 0x323b4b,
+        roughness: 0.68,
+        metalness: 0.08,
+        emissive: 0x070a11,
+        emissiveIntensity: 0.28
       })),
       trackResource(this.resources, new THREE.MeshStandardMaterial({
-        color: 0x282c33,
-        roughness: 0.86
+        color: 0x27303f,
+        roughness: 0.73,
+        metalness: 0.06,
+        emissive: 0x050810,
+        emissiveIntensity: 0.24
       }))
     ];
 
@@ -488,10 +621,40 @@ export class WebGLSaisupi {
       }
     }
 
-    const grid = new THREE.GridHelper(7, 7, 0x8a6a31, 0x4a4e57);
+    const frameMaterial = trackResource(this.resources, new THREE.MeshStandardMaterial({
+      color: 0x86602f,
+      roughness: 0.34,
+      metalness: 0.52,
+      emissive: 0x2a1505,
+      emissiveIntensity: 0.20
+    }));
+    const frameLongGeometry = trackResource(
+      this.resources,
+      new RoundedBoxGeometry(7.92, 0.09, 0.075, 6, 0.028)
+    );
+    const frameShortGeometry = trackResource(
+      this.resources,
+      new RoundedBoxGeometry(0.075, 0.09, 7.92, 6, 0.028)
+    );
+    for (const z of [-4.03, 4.03]) {
+      const rail = new THREE.Mesh(frameLongGeometry, frameMaterial);
+      rail.position.set(0, 0.092, z);
+      rail.castShadow = this.performanceProfile.shadows;
+      rail.receiveShadow = this.performanceProfile.shadows;
+      this.scene.add(rail);
+    }
+    for (const x of [-4.03, 4.03]) {
+      const rail = new THREE.Mesh(frameShortGeometry, frameMaterial);
+      rail.position.set(x, 0.092, 0);
+      rail.castShadow = this.performanceProfile.shadows;
+      rail.receiveShadow = this.performanceProfile.shadows;
+      this.scene.add(rail);
+    }
+
+    const grid = new THREE.GridHelper(BOARD_SIZE, BOARD_SIZE, 0xc28a3e, 0x69758a);
     grid.position.y = 0.065;
     grid.material.transparent = true;
-    grid.material.opacity = 0.34;
+    grid.material.opacity = 0.38;
     trackResource(this.resources, grid.geometry);
     if (Array.isArray(grid.material)) {
       for (const material of grid.material) trackResource(this.resources, material);
@@ -572,9 +735,23 @@ export class WebGLSaisupi {
       blending: THREE.AdditiveBlending,
       side: THREE.DoubleSide
     }));
+    const ringMaterial = trackResource(this.resources, new THREE.MeshBasicMaterial({
+      color: 0xffc95c,
+      transparent: true,
+      opacity: 0.86,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide
+    }));
     const group = new THREE.Group();
     const outerMesh = new THREE.Mesh(this.lightPillarGeometry, outerMaterial);
     const coreMesh = new THREE.Mesh(this.lightPillarCoreGeometry, coreMaterial);
+    const ringMesh = new THREE.Mesh(this.lightPillarRingGeometry, ringMaterial);
+    ringMesh.rotation.x = Math.PI / 2;
+    ringMesh.scale.setScalar(0.72);
+    ringMesh.position.y = 0.028;
+    ringMesh.renderOrder = 3;
+    group.add(ringMesh);
     const initialState = getLightPillarState(0);
     for (const [mesh, renderOrder] of [[outerMesh, 4], [coreMesh, 5]]) {
       mesh.scale.y = initialState.height;
@@ -582,13 +759,16 @@ export class WebGLSaisupi {
       mesh.renderOrder = renderOrder;
       group.add(mesh);
     }
-    group.position.copy(gridToWorld(target.row, target.column, FLOOR_Y + 0.11));
+    group.position.copy(gridToWorld(target.row, target.column, FLOOR_Y + 0.065));
     group.userData.targetId = target.id;
     this.scene.add(group);
     const effect = {
       group,
       meshes: [outerMesh, coreMesh],
-      materials: [outerMaterial, coreMaterial],
+      ring: ringMesh,
+      ringMaterial,
+      ringDuration: 640,
+      materials: [outerMaterial, coreMaterial, ringMaterial],
       startedAt,
       duration: LIGHT_PILLAR_DURATION
     };
@@ -611,6 +791,14 @@ export class WebGLSaisupi {
       }
       effect.materials[0].opacity = state.opacity;
       effect.materials[1].opacity = Math.min(0.66, state.opacity * 1.45);
+      const ringProgress = Math.min(
+        1,
+        Math.max(0, elapsed / effect.ringDuration)
+      );
+      const ringScale = 0.72 + easeOutCubic(ringProgress) * 1.65;
+      effect.ring.scale.setScalar(ringScale);
+      effect.ring.rotation.z = elapsed * 0.0018;
+      effect.ringMaterial.opacity = 0.86 * (1 - ringProgress);
     }
   }
 
@@ -620,19 +808,36 @@ export class WebGLSaisupi {
     this.targetRun = run;
     this.session.setTargets(run.targets);
     for (const target of run.targets) {
-      const marker = createTargetMarker(
-        target,
-        this.targetHaloGeometry,
-        this.targetRingGeometry,
-        this.targetPipGeometry,
-        this.targetHaloMaterial,
-        this.targetRingMaterial,
-        this.targetPipMaterial
-      );
+      const marker = createTargetMarker(target, {
+        padGeometry: this.targetPadGeometry,
+        haloGeometry: this.targetHaloGeometry,
+        ringGeometry: this.targetRingGeometry,
+        pipGlowGeometry: this.targetPipGlowGeometry,
+        pipGeometry: this.targetPipGeometry,
+        padMaterial: this.targetPadMaterial,
+        haloMaterial: this.targetHaloMaterial,
+        ringMaterial: this.targetRingMaterial,
+        pipGlowMaterial: this.targetPipGlowMaterial,
+        pipMaterial: this.targetPipMaterial
+      });
       this.targetMarkers.set(target.id, marker);
       this.scene.add(marker);
     }
     return run;
+  }
+
+  updateTargetMarkers(elapsedSeconds) {
+    const reduceMotion = this.shouldReduceMotion();
+    for (const marker of this.targetMarkers.values()) {
+      if (!marker.visible) continue;
+      const pulse = reduceMotion
+        ? 0.5
+        : 0.5 + 0.5 * Math.sin(elapsedSeconds * 3.4 + marker.userData.pulseOffset);
+      const markerScale = 1 + pulse * 0.035;
+      marker.scale.setScalar(markerScale);
+      marker.userData.halo.scale.setScalar(1 + pulse * 0.12);
+      marker.userData.ring.scale.setScalar(1 + pulse * 0.05);
+    }
   }
 
   setActive(active) {
@@ -678,6 +883,8 @@ export class WebGLSaisupi {
       this.performanceProfile.shadows,
       this.resources,
       this.dieGeometry,
+      this.dieEdgeGeometry,
+      this.dieEdgeMaterial,
       this.pipGeometry,
       this.pipMaterial
     );
@@ -905,7 +1112,6 @@ export class WebGLSaisupi {
 
     const marker = this.targetMarkers.get(target.id);
     if (marker) marker.visible = false;
-    this.startLightPillar(target, landedAt);
 
     let finished = false;
     if (this.session.isRunComplete()) {
@@ -913,8 +1119,10 @@ export class WebGLSaisupi {
       finished = elapsed !== null && this.session.finish(landedAt);
     }
 
+    if (!finished) this.startLightPillar(target, landedAt);
+
     const snapshot = this.getSnapshot();
-    this.callbacks.onTargetHit?.({ target, snapshot });
+    this.callbacks.onTargetHit?.({ target, finished, snapshot });
     if (finished) this.callbacks.onFinished?.({ target, snapshot });
     return { target, finished, snapshot };
   }
@@ -1187,6 +1395,7 @@ export class WebGLSaisupi {
 
     const elapsed = this.renderClock.getElapsedTime();
     const reducedMotion = this.shouldReduceMotion();
+    this.updateTargetMarkers(elapsed);
     if (reducedMotion) this.player.rotation.x = 0;
     if (!this.session.busy) {
       const activeDie = this.activeKey ? this.dice.get(this.activeKey) : null;

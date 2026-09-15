@@ -11,7 +11,6 @@ import {
 } from './input-direction.js';
 import { MotionPreferences } from './motion-preferences.js';
 import { StartRequestGate } from './saisupi-startup.js';
-import { LIGHT_PILLAR_DURATION } from './saisupi-light-pillar.js';
 import {
   createHomeShareContent,
   createResultShareContent,
@@ -76,7 +75,6 @@ let gameModulePromise = null;
 let startPending = false;
 let currentPlayerName = '';
 let latestResult = null;
-let finishTimerId = null;
 let roundToken = 0;
 let rankingState = createRankingState();
 
@@ -137,17 +135,10 @@ function capturePlayerName() {
   return name;
 }
 
-function clearFinishTimer() {
-  if (finishTimerId === null) return;
-  window.clearTimeout(finishTimerId);
-  finishTimerId = null;
-}
-
 function showHome() {
   startGate.invalidate();
   roundToken += 1;
   rankingState = createRankingState();
-  clearFinishTimer();
   startPending = false;
   pointerStart = null;
   latestResult = null;
@@ -351,7 +342,6 @@ function showResult(snapshot, token) {
   if (!snapshot || token !== roundToken) return;
   const retired = snapshot.retired === true;
   latestResult = Object.freeze({ ...snapshot, retired });
-  finishTimerId = null;
   game?.setActive(false);
   resultScore.textContent = retired ? 'リタイア' : (snapshot.displayTime ?? '--.--秒');
   resultScore.classList.toggle('is-retired', retired);
@@ -401,20 +391,15 @@ const callbacks = {
     phaseStatus.textContent = '移動できます';
     setMessage('サイコロの上面は' + String(top) + 'です');
   },
-  onTargetHit: ({ snapshot }) => {
-    soundEffects.playClear();
+  onTargetHit: ({ finished, snapshot }) => {
+    if (!finished) soundEffects.playClear();
     updateFromSnapshot(snapshot);
-    setMessage('目標をそろえました');
+    if (!finished) setMessage('目標をそろえました');
   },
   onFinished: ({ snapshot }) => {
     updateFromSnapshot(snapshot);
-    setMessage('完了。記録は' + snapshot.displayTime + 'です');
-    clearFinishTimer();
     const token = roundToken;
-    finishTimerId = window.setTimeout(() => {
-      if (token !== roundToken || app.dataset.screen !== 'playing') return;
-      showResult(snapshot, token);
-    }, LIGHT_PILLAR_DURATION);
+    showResult(snapshot, token);
   },
   onTick: updateFromSnapshot,
   onReset: updateFromSnapshot,
@@ -498,7 +483,6 @@ async function startGame() {
 
 function retireGame() {
   if (!game || app.dataset.screen !== 'playing' || startPending) return;
-  clearFinishTimer();
   startGate.invalidate();
   roundToken += 1;
   rankingState = createRankingState();
@@ -511,7 +495,6 @@ function retireGame() {
 function replayGame() {
   if (!game || !currentPlayerName || startPending) return;
   void soundEffects.unlock();
-  clearFinishTimer();
   startGate.invalidate();
   roundToken += 1;
   rankingState = createRankingState();
@@ -713,7 +696,6 @@ window.addEventListener('resize', () => {
 window.addEventListener('pagehide', () => {
   startGate.invalidate();
   roundToken += 1;
-  clearFinishTimer();
   startPending = false;
   pointerStart = null;
   game?.dispose();

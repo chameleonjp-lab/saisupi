@@ -1,6 +1,7 @@
 const TOUCH_POINTER_MEDIA_QUERY = '(pointer: coarse)';
 
 const STANDARD_ACTION_TIMINGS = Object.freeze({
+  // PC/標準はサイノメの設定を維持する。
   rollMs: 280,
   hopMs: 210,
   walkMs: 170,
@@ -8,7 +9,8 @@ const STANDARD_ACTION_TIMINGS = Object.freeze({
 });
 
 const TOUCH_ACTION_TIMINGS = Object.freeze({
-  rollMs: 215,
+  // タッチ端末だけ、今回の指定に合わせて転がりを短くする。
+  rollMs: 180,
   hopMs: 155,
   walkMs: 125,
   stepDownMs: 165
@@ -60,4 +62,3 @@ export function getPerformanceProfile(options = {}) {
   const isTouch = options.isTouch ?? isTouchPerformanceTarget(options);
   return isTouch ? PERFORMANCE_PROFILES.touch : PERFORMANCE_PROFILES.standard;
 }
-
