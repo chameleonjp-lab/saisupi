@@ -155,16 +155,33 @@ function createTargetPipPositions(value) {
   return positions[value];
 }
 
-function createTargetMarker(target, ringGeometry, pipGeometry, ringMaterial, pipMaterial) {
+function createTargetMarker(
+  target,
+  haloGeometry,
+  ringGeometry,
+  pipGeometry,
+  haloMaterial,
+  ringMaterial,
+  pipMaterial
+) {
   const group = new THREE.Group();
+  const halo = new THREE.Mesh(haloGeometry, haloMaterial);
+  halo.rotation.x = -Math.PI / 2;
+  halo.position.y = 0.001;
+  halo.renderOrder = 1;
+  group.add(halo);
+
   const ring = new THREE.Mesh(ringGeometry, ringMaterial);
   ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.004;
+  ring.renderOrder = 2;
   group.add(ring);
 
   for (const [u, v] of createTargetPipPositions(target.value)) {
     const pip = new THREE.Mesh(pipGeometry, pipMaterial);
     pip.rotation.x = -Math.PI / 2;
-    pip.position.set(u, 0.006, v);
+    pip.position.set(u, 0.008, v);
+    pip.renderOrder = 3;
     group.add(pip);
   }
 
@@ -197,7 +214,7 @@ function createPlayer(useShadows, resources) {
   }));
 
   const body = new THREE.Mesh(
-    trackResource(resources, new RoundedBoxGeometry(0.27, 0.34, 0.20, 3, 0.07)),
+    trackResource(resources, new RoundedBoxGeometry(0.27, 0.34, 0.20, 5, 0.07)),
     yellow
   );
   body.position.y = 0.24;
@@ -205,21 +222,21 @@ function createPlayer(useShadows, resources) {
   player.add(body);
 
   const head = new THREE.Mesh(
-    trackResource(resources, new THREE.SphereGeometry(0.18, 20, 14)),
+    trackResource(resources, new THREE.SphereGeometry(0.18, 28, 20)),
     yellow
   );
   head.position.y = 0.57;
   head.castShadow = useShadows;
   player.add(head);
 
-  const eyeGeometry = trackResource(resources, new THREE.SphereGeometry(0.025, 8, 6));
+  const eyeGeometry = trackResource(resources, new THREE.SphereGeometry(0.025, 12, 8));
   for (const x of [-0.065, 0.065]) {
     const eye = new THREE.Mesh(eyeGeometry, dark);
     eye.position.set(x, 0.60, 0.16);
     player.add(eye);
   }
 
-  const limbGeometry = trackResource(resources, new THREE.CapsuleGeometry(0.035, 0.18, 4, 8));
+  const limbGeometry = trackResource(resources, new THREE.CapsuleGeometry(0.035, 0.18, 6, 12));
   for (const x of [-0.13, 0.13]) {
     const arm = new THREE.Mesh(limbGeometry, yellow);
     arm.position.set(x, 0.28, 0);
@@ -278,39 +295,59 @@ export class WebGLSaisupi {
     this.resources = new Set();
     this.dieGeometry = trackResource(
       this.resources,
-      new RoundedBoxGeometry(DICE_SIZE, DICE_SIZE, DICE_SIZE, 5, 0.12)
+      new RoundedBoxGeometry(DICE_SIZE, DICE_SIZE, DICE_SIZE, 6, 0.13)
     );
     this.pipGeometry = trackResource(
       this.resources,
-      new THREE.SphereGeometry(0.064, 10, 7)
+      new THREE.SphereGeometry(0.064, 12, 8)
     );
     this.pipMaterial = trackResource(this.resources, new THREE.MeshStandardMaterial({
       color: 0x17130f,
       roughness: 0.72
     }));
+    this.targetHaloGeometry = trackResource(
+      this.resources,
+      new THREE.CircleGeometry(0.43, 48)
+    );
     this.targetRingGeometry = trackResource(
       this.resources,
-      new THREE.RingGeometry(0.27, 0.33, 32)
+      new THREE.RingGeometry(0.27, 0.33, 48)
     );
     this.targetPipGeometry = trackResource(
       this.resources,
-      new THREE.CircleGeometry(0.045, 12)
+      new THREE.CircleGeometry(0.052, 20)
     );
-    this.targetRingMaterial = trackResource(this.resources, new THREE.MeshStandardMaterial({
-      color: 0xffd978,
-      emissive: 0xff9d1a,
-      emissiveIntensity: 0.75,
-      roughness: 0.36
+    this.targetHaloMaterial = trackResource(this.resources, new THREE.MeshBasicMaterial({
+      color: 0xffa51f,
+      transparent: true,
+      opacity: 0.15,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide
     }));
-    this.targetPipMaterial = trackResource(this.resources, new THREE.MeshStandardMaterial({
+    this.targetRingMaterial = trackResource(this.resources, new THREE.MeshBasicMaterial({
+      color: 0xffbd42,
+      transparent: true,
+      opacity: 0.92,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide
+    }));
+    this.targetPipMaterial = trackResource(this.resources, new THREE.MeshBasicMaterial({
       color: 0xfff6cc,
-      emissive: 0xffc44f,
-      emissiveIntensity: 1.1,
-      roughness: 0.28
+      transparent: true,
+      opacity: 0.98,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide
     }));
     this.lightPillarGeometry = trackResource(
       this.resources,
-      new THREE.CylinderGeometry(0.17, 0.32, 1, 20, 1, true)
+      new THREE.CylinderGeometry(0.30, 0.30, 1, 32, 1, true)
+    );
+    this.lightPillarCoreGeometry = trackResource(
+      this.resources,
+      new THREE.CylinderGeometry(0.11, 0.16, 1, 24, 1, true)
     );
 
     this.dice = new Map();
@@ -425,7 +462,7 @@ export class WebGLSaisupi {
 
     const tileGeometry = trackResource(
       this.resources,
-      new RoundedBoxGeometry(0.92, 0.10, 0.92, 3, 0.08)
+      new RoundedBoxGeometry(0.92, 0.10, 0.92, 5, 0.08)
     );
     const materials = [
       trackResource(this.resources, new THREE.MeshStandardMaterial({
@@ -507,8 +544,10 @@ export class WebGLSaisupi {
   removeLightPillar(effect) {
     if (!effect || !this.lightPillars.delete(effect)) return;
     this.scene.remove(effect.group);
-    this.resources.delete(effect.material);
-    effect.material.dispose();
+    for (const material of effect.materials ?? [effect.material]) {
+      this.resources.delete(material);
+      material.dispose();
+    }
   }
 
   removeLightPillars() {
@@ -517,7 +556,7 @@ export class WebGLSaisupi {
 
   startLightPillar(target, startedAt) {
     if (!target || !Number.isFinite(startedAt)) return false;
-    const material = trackResource(this.resources, new THREE.MeshBasicMaterial({
+    const outerMaterial = trackResource(this.resources, new THREE.MeshBasicMaterial({
       color: 0xffd66b,
       transparent: true,
       opacity: 0.38,
@@ -525,15 +564,34 @@ export class WebGLSaisupi {
       blending: THREE.AdditiveBlending,
       side: THREE.DoubleSide
     }));
+    const coreMaterial = trackResource(this.resources, new THREE.MeshBasicMaterial({
+      color: 0xfff2a8,
+      transparent: true,
+      opacity: 0.54,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide
+    }));
     const group = new THREE.Group();
-    const mesh = new THREE.Mesh(this.lightPillarGeometry, material);
-    mesh.position.y = 0.5;
-    mesh.renderOrder = 4;
-    group.position.copy(gridToWorld(target.row, target.column, FLOOR_Y + 0.08));
+    const outerMesh = new THREE.Mesh(this.lightPillarGeometry, outerMaterial);
+    const coreMesh = new THREE.Mesh(this.lightPillarCoreGeometry, coreMaterial);
+    const initialState = getLightPillarState(0);
+    for (const [mesh, renderOrder] of [[outerMesh, 4], [coreMesh, 5]]) {
+      mesh.scale.y = initialState.height;
+      mesh.position.y = initialState.height / 2;
+      mesh.renderOrder = renderOrder;
+      group.add(mesh);
+    }
+    group.position.copy(gridToWorld(target.row, target.column, FLOOR_Y + 0.11));
     group.userData.targetId = target.id;
-    group.add(mesh);
     this.scene.add(group);
-    const effect = { group, material, startedAt, duration: LIGHT_PILLAR_DURATION };
+    const effect = {
+      group,
+      meshes: [outerMesh, coreMesh],
+      materials: [outerMaterial, coreMaterial],
+      startedAt,
+      duration: LIGHT_PILLAR_DURATION
+    };
     this.lightPillars.add(effect);
     return true;
   }
@@ -547,8 +605,12 @@ export class WebGLSaisupi {
         this.removeLightPillar(effect);
         continue;
       }
-      effect.group.scale.y = state.height;
-      effect.material.opacity = state.opacity;
+      for (const mesh of effect.meshes) {
+        mesh.scale.y = state.height;
+        mesh.position.y = state.height / 2;
+      }
+      effect.materials[0].opacity = state.opacity;
+      effect.materials[1].opacity = Math.min(0.66, state.opacity * 1.45);
     }
   }
 
@@ -560,8 +622,10 @@ export class WebGLSaisupi {
     for (const target of run.targets) {
       const marker = createTargetMarker(
         target,
+        this.targetHaloGeometry,
         this.targetRingGeometry,
         this.targetPipGeometry,
+        this.targetHaloMaterial,
         this.targetRingMaterial,
         this.targetPipMaterial
       );

@@ -39,6 +39,27 @@ function requireScore(score) {
   return score;
 }
 
+function parseGameRegistration(data) {
+  const row = Array.isArray(data) && data.length === 1 ? data[0] : null;
+  if (
+    row?.game_slug !== SAISUPI_GAME_SLUG
+    || row.is_active !== true
+    || row.score_order !== 'asc'
+  ) {
+    throw new RankingError(
+      'game-not-registered',
+      'オンラインランキングは準備中です',
+      undefined,
+      { status: 404 }
+    );
+  }
+  return Object.freeze({
+    gameSlug: row.game_slug,
+    active: row.is_active,
+    scoreOrder: row.score_order
+  });
+}
+
 function parseSingleRow(data, message) {
   if (!Array.isArray(data) || data.length !== 1 || !data[0]) {
     throw new RankingError('invalid-response', message);
@@ -127,9 +148,10 @@ export class RankingClient {
     this.publishableKey = publishableKey;
     this.fetchImpl = fetchImpl;
     this.timeoutMs = timeoutMs;
+    this.registration = null;
   }
 
-  async #rpc(functionName, parameters) {
+  async #requestJson(path, { method = 'GET', body, operation = 'ranking' } = {}) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
     const headers = {
@@ -139,18 +161,15 @@ export class RankingClient {
       'Content-Type': 'application/json'
     };
     try {
-      const response = await this.fetchImpl.call(
-        globalThis,
-        `${this.url}/rest/v1/rpc/${functionName}`,
-        {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(parameters),
-          cache: 'no-store',
-          credentials: 'omit',
-          signal: controller.signal
-        }
-      );
+      const request = {
+        method,
+        headers,
+        cache: 'no-store',
+        credentials: 'omit',
+        signal: controller.signal
+      };
+      if (body !== undefined) request.body = body;
+      const response = await this.fetchImpl.call(globalThis, `${this.url}${path}`, request);
       let data = null;
       try {
         data = await response.json();
@@ -168,7 +187,7 @@ export class RankingClient {
               || response.status === 429
               || response.status >= 500,
             status: response.status,
-            rpcName: functionName
+            rpcName: operation
           }
         );
       }
@@ -178,16 +197,35 @@ export class RankingClient {
       if (error?.name === 'AbortError') {
         throw new RankingError('timeout', 'ランキング通信が時間切れになりました', error, {
           retryable: true,
-          rpcName: functionName
+          rpcName: operation
         });
       }
       throw new RankingError('network', 'ランキングへ接続できませんでした', error, {
         retryable: true,
-        rpcName: functionName
+        rpcName: operation
       });
     } finally {
       clearTimeout(timeoutId);
     }
+  }
+
+  async #rpc(functionName, parameters) {
+    return this.#requestJson(`/rest/v1/rpc/${functionName}`, {
+      method: 'POST',
+      body: JSON.stringify(parameters),
+      operation: functionName
+    });
+  }
+
+  async #ensureGameRegistration() {
+    if (this.registration) return this.registration;
+    const filter = encodeURIComponent(SAISUPI_GAME_SLUG);
+    const data = await this.#requestJson(
+      `/rest/v1/games?select=game_slug,is_active,score_order&game_slug=eq.${filter}&limit=1`,
+      { operation: 'games' }
+    );
+    this.registration = parseGameRegistration(data);
+    return this.registration;
   }
 
   async startPlay({ displayName }) {
@@ -201,6 +239,7 @@ export class RankingClient {
       p_result_type: 'play',
       p_client_version: RANKING_CLIENT_VERSION
     };
+    await this.#ensureGameRegistration();
     return parseStartResponse(await this.#rpc('record_game_play', parameters), expected);
   }
 
@@ -216,6 +255,7 @@ export class RankingClient {
       p_score: expected.score,
       p_client_version: RANKING_CLIENT_VERSION
     };
+    await this.#ensureGameRegistration();
     return parseSubmitResponse(await this.#rpc('submit_score', parameters), expected);
   }
 
@@ -224,8 +264,14 @@ export class RankingClient {
       p_game_slug: SAISUPI_GAME_SLUG,
       p_limit: RANKING_LIMIT
     };
+    await this.#ensureGameRegistration();
     return parseRankingResponse(await this.#rpc('get_best_score_ranking', parameters));
   }
 }
 
-export { parseRankingResponse, parseStartResponse, parseSubmitResponse };
+export {
+  parseGameRegistration,
+  parseRankingResponse,
+  parseStartResponse,
+  parseSubmitResponse
+};

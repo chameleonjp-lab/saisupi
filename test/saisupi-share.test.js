@@ -8,37 +8,38 @@ import {
   shareResult
 } from '../js/saisupi-share.js';
 
-test('ホーム共有文はURLを本文のテキストとして含める', () => {
+test('ホーム共有文は指定された3行をそのまま本文にする', () => {
   const content = createHomeShareContent({
     pageUrl: 'https://chameleonjp-lab.github.io/saisupi/?from=test#home'
   });
   assert.equal(content.url, 'https://chameleonjp-lab.github.io/saisupi/');
-  assert.match(content.text, /URL: https:\/\/chameleonjp-lab\.github\.io\/saisupi\//u);
+  assert.equal(content.text, [
+    'サイスピ',
+    'サイコロを転がし、10個の目を揃えるタイムアタックゲーム',
+    'https://chameleonjp-lab.github.io/saisupi/'
+  ].join('\n'));
+  assert.doesNotMatch(content.text, /URL:|#サイスピ/u);
   assert.equal(content.copyText, content.text);
 });
 
-test('結果共有文はスコア詳細とテキストURLを含める', () => {
+test('結果共有文はスコアとテキストURLの2行にする', () => {
   const content = createResultShareContent({
     pageUrl: 'https://chameleonjp-lab.github.io/saisupi/',
-    recordMessage: '自己ベストを更新しました',
     result: {
-      scoreCentiseconds: 1234,
-      targetTimings: [
-        { index: 1, elapsedMs: 3210 },
-        { index: 10, elapsedMs: 12340 }
-      ]
+      scoreCentiseconds: 10418
     }
   });
-  assert.match(content.text, /12\.34秒/u);
-  assert.match(content.text, /1:3\.21秒/u);
-  assert.match(content.text, /10:12\.34秒/u);
-  assert.match(content.text, /URL: https:\/\/chameleonjp-lab\.github\.io\/saisupi\//u);
+  assert.equal(content.text, [
+    'サイスピを 104.18秒 でクリア',
+    'https://chameleonjp-lab.github.io/saisupi/'
+  ].join('\n'));
+  assert.doesNotMatch(content.text, /URL:|#サイスピ/u);
 });
 
 test('共有APIへURLプロパティを渡さず、本文へ渡す', async () => {
   let shared = null;
   const status = await shareResult(
-    { title: 'サイスピ', text: 'URL: https://example.test/saisupi/', copyText: 'copy' },
+    { title: 'サイスピ', text: 'サイスピ\nhttps://example.test/saisupi/', copyText: 'copy' },
     {
       canShare: () => true,
       share: async (data) => { shared = data; }
@@ -47,6 +48,6 @@ test('共有APIへURLプロパティを渡さず、本文へ渡す', async () =>
   assert.equal(status, RESULT_SHARE_STATUSES.SHARED);
   assert.deepEqual(shared, {
     title: 'サイスピ',
-    text: 'URL: https://example.test/saisupi/'
+    text: 'サイスピ\nhttps://example.test/saisupi/'
   });
 });

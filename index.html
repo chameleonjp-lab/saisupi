@@ -4,10 +4,27 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b1018">
-  <meta name="saisupi-release" content="p3-result-ranking-provisional-v1">
+  <meta name="description" content="サイコロを転がし、10個の目を揃えるタイムアタックゲーム">
+  <meta name="saisupi-release" content="p4-polish-ranking-provisional-v1">
   <link rel="canonical" href="https://chameleonjp-lab.github.io/saisupi/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="サイスピ">
+  <meta property="og:title" content="サイスピ">
+  <meta property="og:description" content="サイコロを転がし、10個の目を揃えるタイムアタックゲーム">
+  <meta property="og:url" content="https://chameleonjp-lab.github.io/saisupi/">
+  <meta property="og:image" content="https://chameleonjp-lab.github.io/saisupi/assets/saisupi-og.jpg">
+  <meta property="og:image:secure_url" content="https://chameleonjp-lab.github.io/saisupi/assets/saisupi-og.jpg">
+  <meta property="og:image:alt" content="サイスピの盤面、サイコロ、黄色いキャラクター">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="サイスピ">
+  <meta name="twitter:description" content="サイコロを転がし、10個の目を揃えるタイムアタックゲーム">
+  <meta name="twitter:image" content="https://chameleonjp-lab.github.io/saisupi/assets/saisupi-og.jpg">
+  <meta name="twitter:image:alt" content="サイスピの盤面、サイコロ、黄色いキャラクター">
   <title>サイスピ</title>
-  <link rel="stylesheet" href="./css/style.css?v=p3-result-ranking-provisional-v1">
+  <link rel="stylesheet" href="./css/style.css?v=p4-polish-ranking-provisional-v1">
   <script type="importmap">
   {
     "imports": {
@@ -23,10 +40,21 @@
       <div class="home-card">
         <p class="screen-kicker">サイコロの上面をそろえる</p>
         <h1 id="game-title">サイスピ</h1>
-        <p class="screen-lead">
-          盤面に沿ってキャラクターを動かし、埋まったサイコロへ登ります。
-          サイコロが上がりきったら、光る10個の目を上面にそろえる時間を競います。
-        </p>
+        <p class="screen-lead">3ステップで、10個の目をそろえるタイムアタックです。</p>
+        <ol class="home-steps" aria-label="遊び方">
+          <li>
+            <b>1</b>
+            <span><strong>近づいて登る</strong><small>盤面に沿ってキャラクターを動かし、埋まったサイコロへ登ります。</small></span>
+          </li>
+          <li>
+            <b>2</b>
+            <span><strong>光る目に合わせる</strong><small>サイコロを転がし、上面の目を盤面の光る目とそろえます。</small></span>
+          </li>
+          <li>
+            <b>3</b>
+            <span><strong>10個を早くそろえる</strong><small>10個すべてをそろえた時間がスコアになります。</small></span>
+          </li>
+        </ol>
         <label class="player-name-field" for="player-name-input">
           <span>名前 <b>必須</b></span>
           <input
@@ -51,7 +79,6 @@
         </div>
         <p id="home-share-status" class="share-status" role="status" aria-live="polite"></p>
         <p id="home-error" class="form-error" role="alert" hidden></p>
-        <p class="scope-note">10個すべてをそろえたタイムを記録し、オンラインランキングへ送信できます。</p>
       </div>
     </section>
 
@@ -64,6 +91,7 @@
         <div class="game-header-actions">
           <output id="phase-status" class="phase-status" aria-live="polite">待機中</output>
           <button id="home-button" class="secondary-button" type="button">ホームへ</button>
+          <button id="retire-button" class="secondary-button retire-button" type="button">リタイア</button>
         </div>
       </header>
 
@@ -74,7 +102,7 @@
           <output id="target-progress" aria-label="達成数">達成 0/10</output>
         </div>
         <div id="loading" class="loading" role="status">3D盤面を準備中…</div>
-        <div id="message" class="message" role="status" aria-live="polite">
+        <div id="message" class="visually-hidden" role="status" aria-live="polite">
           埋まったサイコロへ近づいて登ります
         </div>
         <div id="direction-controls" class="direction-controls" role="group" aria-label="斜め方向の移動ボタン">
@@ -106,6 +134,8 @@
           <div><dt>自己ベスト</dt><dd id="result-best-score">—</dd></div>
         </dl>
 
+        <button id="result-replay-button" class="primary-button result-inline-replay" type="button">再プレイ</button>
+
         <section class="result-details" aria-labelledby="result-details-title">
           <header>
             <h3 id="result-details-title">スコア詳細</h3>
@@ -124,7 +154,7 @@
         </section>
 
         <div class="result-actions">
-          <button id="replay-button" class="primary-button" type="button">再プレイ</button>
+          <button id="replay-button" class="primary-button" type="button">もう一度プレイ</button>
           <button id="result-share-button" class="secondary-button" type="button">結果をシェア</button>
           <button id="result-home-button" class="secondary-button" type="button">ホーム画面に戻る</button>
           <a id="result-lab-link" class="secondary-button lab-link" href="https://chameleonjp-lab.github.io/chameleonjp_lab/">カメレオンJPの実験場</a>
@@ -139,15 +169,15 @@
       id="sound-toggle"
       class="sound-toggle"
       type="button"
-      aria-pressed="false"
-      aria-label="効果音をオンにする"
+      aria-pressed="true"
+      aria-label="効果音をオフにする"
     >
-      <span id="sound-toggle-icon" aria-hidden="true">🔇</span>
-      <span id="sound-toggle-label">効果音 オフ</span>
+      <span id="sound-toggle-icon" aria-hidden="true">🔊</span>
+      <span id="sound-toggle-label">効果音 オン</span>
     </button>
     <p id="sound-status" class="visually-hidden" role="status" aria-live="polite"></p>
   </footer>
 
-  <script type="module" src="./js/main.js?v=p3-result-ranking-provisional-v1"></script>
+  <script type="module" src="./js/main.js?v=p4-polish-ranking-provisional-v1"></script>
 </body>
 </html>

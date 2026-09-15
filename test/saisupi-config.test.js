@@ -9,6 +9,7 @@ import {
   INITIAL_PLAYER_POSITION,
   RISE_DURATION,
   SAISUPI_GAME_SLUG,
+  SAISUPI_OG_IMAGE_URL,
   SAISUPI_RULE_VERSION,
   SUPABASE_PUBLISHABLE_KEY,
   SUPABASE_URL,
@@ -31,9 +32,10 @@ test('P1は7×7盤面の中央に埋まったサイコロを置く', () => {
   assert.equal(RISE_DURATION, 720);
 });
 
-test('P2の暫定設定は版付きで10座標を公開する', () => {
-  assert.equal(SAISUPI_RULE_VERSION, 'p3-result-ranking-provisional-v1');
+test('P4の暫定設定と共有画像URLを公開する', () => {
+  assert.equal(SAISUPI_RULE_VERSION, 'p4-polish-ranking-provisional-v1');
   assert.equal(SAISUPI_GAME_SLUG, 'saisupi');
+  assert.equal(SAISUPI_OG_IMAGE_URL, 'https://chameleonjp-lab.github.io/saisupi/assets/saisupi-og.jpg');
   assert.match(SUPABASE_URL, /^https:\/\/.+\.supabase\.co$/u);
   assert.match(SUPABASE_PUBLISHABLE_KEY, /^sb_publishable_/u);
   assert.doesNotMatch(SUPABASE_PUBLISHABLE_KEY, /service_role|secret/iu);

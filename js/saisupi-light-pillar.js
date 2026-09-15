@@ -1,6 +1,6 @@
-export const LIGHT_PILLAR_DURATION = 1000;
-export const LIGHT_PILLAR_GROW_DURATION = 220;
-export const LIGHT_PILLAR_MAX_OPACITY = 0.38;
+export const LIGHT_PILLAR_DURATION = 3000;
+export const LIGHT_PILLAR_GROW_DURATION = 420;
+export const LIGHT_PILLAR_MAX_OPACITY = 0.42;
 
 export function getLightPillarState(
   elapsedMs,

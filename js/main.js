@@ -39,6 +39,7 @@ const homeError = document.querySelector('#home-error');
 const activeGameTitle = document.querySelector('#game-screen-title');
 const startButton = document.querySelector('#start-button');
 const homeButton = document.querySelector('#home-button');
+const retireButton = document.querySelector('#retire-button');
 const directionButtons = [...document.querySelectorAll('[data-direction]')];
 const webglErrorPanel = document.querySelector('#webgl-error-panel');
 const webglErrorStatus = document.querySelector('#webgl-error-status');
@@ -46,6 +47,7 @@ const webglErrorHome = document.querySelector('#webgl-error-home');
 const homeShareButton = document.querySelector('#home-share-button');
 const homeShareStatus = document.querySelector('#home-share-status');
 const replayButton = document.querySelector('#replay-button');
+const resultReplayButton = document.querySelector('#result-replay-button');
 const resultHomeButton = document.querySelector('#result-home-button');
 const resultShareButton = document.querySelector('#result-share-button');
 const resultShareStatus = document.querySelector('#result-share-status');
@@ -158,10 +160,12 @@ function showHome() {
   resultScreen.hidden = true;
   homeScreen.hidden = false;
   app.dataset.screen = 'home';
+  delete app.dataset.resultType;
   phaseStatus.textContent = '待機中';
   runTime.textContent = '0.00秒';
   targetProgress.textContent = '達成 0/10';
   activeGameTitle.textContent = 'サイコロへ登る';
+  retireButton.disabled = true;
   homeShareStatus.textContent = '';
   resultShareStatus.textContent = '';
   setHomeError();
@@ -174,6 +178,7 @@ function showGame(name) {
   resultScreen.hidden = true;
   gameScreen.hidden = false;
   app.dataset.screen = 'playing';
+  retireButton.disabled = startPending;
   phaseStatus.textContent = '待機中';
   setMessage('埋まったサイコロへ近づいて登ります');
 }
@@ -290,7 +295,10 @@ async function syncResultRanking(snapshot, token) {
       return;
     }
 
-    if (!state.submission && !state.submissionAttempted) {
+    if (snapshot.retired) {
+      resultBestScore.textContent = '—';
+      setResultRecordMessage('リタイアしたため、スコアは登録しません');
+    } else if (!state.submission && !state.submissionAttempted) {
       state.submissionAttempted = true;
       resultRankingStatus.textContent = 'スコアを登録しています…';
       try {
@@ -341,24 +349,28 @@ async function syncResultRanking(snapshot, token) {
 
 function showResult(snapshot, token) {
   if (!snapshot || token !== roundToken) return;
-  latestResult = snapshot;
+  const retired = snapshot.retired === true;
+  latestResult = Object.freeze({ ...snapshot, retired });
   finishTimerId = null;
   game?.setActive(false);
-  resultScore.textContent = snapshot.displayTime ?? '--.--秒';
+  resultScore.textContent = retired ? 'リタイア' : (snapshot.displayTime ?? '--.--秒');
+  resultScore.classList.toggle('is-retired', retired);
   resultPlayerName.textContent = currentPlayerName || '—';
   resultCleared.textContent = `${snapshot.completedTargetCount ?? 0}/10`;
-  resultBestScore.textContent = '送信中…';
+  resultBestScore.textContent = retired ? '—' : '送信中…';
   resultRankingStatus.textContent = '読み込み中…';
   resultRankingRetry.hidden = true;
   resultShareStatus.textContent = '';
-  setResultRecordMessage('ランキングへ送信しています…');
+  setResultRecordMessage(retired ? 'リタイアしたため、スコアは登録しません' : 'ランキングへ送信しています…');
   renderTargetDetails(snapshot);
   renderRankingRows([]);
   homeScreen.hidden = true;
   gameScreen.hidden = true;
   resultScreen.hidden = false;
   app.dataset.screen = 'result';
-  void syncResultRanking(snapshot, token);
+  app.dataset.resultType = retired ? 'retired' : 'clear';
+  retireButton.disabled = true;
+  void syncResultRanking(latestResult, token);
 }
 
 const callbacks = {
@@ -475,12 +487,25 @@ async function startGame() {
   const ready = await ensureGame(requestId);
   if (!startGate.isCurrent(requestId) || app.dataset.screen !== 'playing') return;
   startPending = false;
+  retireButton.disabled = false;
   if (!ready) {
     showHome();
     setHomeError('3D表示を開始できませんでした。通信状態を確認してください');
     return;
   }
   startPlayRecording(name, token);
+}
+
+function retireGame() {
+  if (!game || app.dataset.screen !== 'playing' || startPending) return;
+  clearFinishTimer();
+  startGate.invalidate();
+  roundToken += 1;
+  rankingState = createRankingState();
+  const token = roundToken;
+  latestResult = null;
+  game.setActive(false);
+  showResult(Object.freeze({ ...game.getSnapshot(), retired: true }), token);
 }
 
 function replayGame() {
@@ -608,10 +633,8 @@ async function handleResultShare() {
   if (app.dataset.screen !== 'result' || !latestResult) return;
   resultShareStatus.textContent = '';
   try {
-    const recordMessage = resultRecordMessage.textContent || '結果を記録しました';
     const content = createResultShareContent({
       result: latestResult,
-      recordMessage,
       pageUrl: SAISUPI_GAME_URL || window.location.href
     });
     const status = await shareResult(content);
@@ -651,8 +674,10 @@ startButton.addEventListener('click', () => {
   void startGame();
 });
 homeButton.addEventListener('click', showHome);
+retireButton.addEventListener('click', retireGame);
 webglErrorHome.addEventListener('click', showHome);
 replayButton.addEventListener('click', replayGame);
+resultReplayButton.addEventListener('click', replayGame);
 resultHomeButton.addEventListener('click', showHome);
 homeShareButton.addEventListener('click', () => {
   void handleHomeShare();

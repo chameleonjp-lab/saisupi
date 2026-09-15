@@ -3,14 +3,16 @@ import assert from 'node:assert/strict';
 
 import {
   LIGHT_PILLAR_DURATION,
+  LIGHT_PILLAR_GROW_DURATION,
   getLightPillarState
 } from '../js/saisupi-light-pillar.js';
 
-test('成功時の光柱は半透明で、1秒間だけ表示する', () => {
-  assert.equal(LIGHT_PILLAR_DURATION, 1000);
+test('成功時の光柱は半透明で、3秒間だけ表示する', () => {
+  assert.equal(LIGHT_PILLAR_DURATION, 3000);
+  assert.equal(LIGHT_PILLAR_GROW_DURATION, 420);
   const start = getLightPillarState(0);
-  const middle = getLightPillarState(500);
-  const end = getLightPillarState(1000);
+  const middle = getLightPillarState(1500);
+  const end = getLightPillarState(3000);
 
   assert.equal(start.visible, true);
   assert.ok(start.opacity > 0 && start.opacity < 1);
@@ -22,7 +24,7 @@ test('成功時の光柱は半透明で、1秒間だけ表示する', () => {
 });
 
 test('不正な時刻や終了後は光柱を表示しない', () => {
-  for (const elapsed of [-1, Number.NaN, Number.POSITIVE_INFINITY, 1000, 1200]) {
+  for (const elapsed of [-1, Number.NaN, Number.POSITIVE_INFINITY, 3000, 3200]) {
     assert.equal(getLightPillarState(elapsed).visible, false);
   }
 });
