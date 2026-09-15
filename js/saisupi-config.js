@@ -1,4 +1,4 @@
-export const SAISUPI_RULE_VERSION = 'p4-polish-ranking-provisional-v1';
+export const SAISUPI_RULE_VERSION = 'p5-visual-polish-v1';
 export const SAISUPI_GAME_SLUG = 'saisupi';
 export const SAISUPI_GAME_URL = 'https://chameleonjp-lab.github.io/saisupi/';
 export const CHAMELEONJP_LAB_URL = 'https://chameleonjp-lab.github.io/chameleonjp_lab/';
