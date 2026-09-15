@@ -35,6 +35,10 @@ import {
   generateTargetRun,
   judgeTargetLanding
 } from './saisupi-targets.js';
+import {
+  LIGHT_PILLAR_DURATION,
+  getLightPillarState
+} from './saisupi-light-pillar.js';
 
 const DIRECTIONS = Object.freeze({
   up: Object.freeze({
@@ -304,12 +308,17 @@ export class WebGLSaisupi {
       emissiveIntensity: 1.1,
       roughness: 0.28
     }));
+    this.lightPillarGeometry = trackResource(
+      this.resources,
+      new THREE.CylinderGeometry(0.17, 0.32, 1, 20, 1, true)
+    );
 
     this.dice = new Map();
     this.session = new SaisupiSession();
     this.clock = new SaisupiClock({ now: () => this.getGameTime() });
     this.targetRun = null;
     this.targetMarkers = new Map();
+    this.lightPillars = new Set();
     this.player = createPlayer(this.performanceProfile.shadows, this.resources);
     this.scene.add(this.player);
     this.playerRow = INITIAL_PLAYER_POSITION.row;
@@ -464,6 +473,7 @@ export class WebGLSaisupi {
     this.clock.reset();
     this.targetRun = null;
     this.removeTargetMarkers();
+    this.removeLightPillars();
 
     for (const die of this.dice.values()) this.removeDie(die);
     this.dice.clear();
@@ -492,6 +502,54 @@ export class WebGLSaisupi {
   removeTargetMarkers() {
     for (const marker of this.targetMarkers.values()) this.scene.remove(marker);
     this.targetMarkers.clear();
+  }
+
+  removeLightPillar(effect) {
+    if (!effect || !this.lightPillars.delete(effect)) return;
+    this.scene.remove(effect.group);
+    this.resources.delete(effect.material);
+    effect.material.dispose();
+  }
+
+  removeLightPillars() {
+    for (const effect of [...this.lightPillars]) this.removeLightPillar(effect);
+  }
+
+  startLightPillar(target, startedAt) {
+    if (!target || !Number.isFinite(startedAt)) return false;
+    const material = trackResource(this.resources, new THREE.MeshBasicMaterial({
+      color: 0xffd66b,
+      transparent: true,
+      opacity: 0.38,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide
+    }));
+    const group = new THREE.Group();
+    const mesh = new THREE.Mesh(this.lightPillarGeometry, material);
+    mesh.position.y = 0.5;
+    mesh.renderOrder = 4;
+    group.position.copy(gridToWorld(target.row, target.column, FLOOR_Y + 0.08));
+    group.userData.targetId = target.id;
+    group.add(mesh);
+    this.scene.add(group);
+    const effect = { group, material, startedAt, duration: LIGHT_PILLAR_DURATION };
+    this.lightPillars.add(effect);
+    return true;
+  }
+
+  updateLightPillars(now) {
+    for (const effect of [...this.lightPillars]) {
+      const elapsed = now - effect.startedAt;
+      if (elapsed < 0) continue;
+      const state = getLightPillarState(elapsed, { duration: effect.duration });
+      if (!state.visible) {
+        this.removeLightPillar(effect);
+        continue;
+      }
+      effect.group.scale.y = state.height;
+      effect.material.opacity = state.opacity;
+    }
   }
 
   prepareTargets() {
@@ -538,6 +596,7 @@ export class WebGLSaisupi {
       targetCount: this.targetRun?.targets.length ?? TARGET_COUNT,
       completedTargetCount: progress.completed,
       completedTargetIds: Object.freeze([...this.session.completedTargetIds]),
+      targetTimings: this.session.getTargetTimings(),
       elapsedMs: clockSnapshot.elapsedMs,
       scoreCentiseconds: clockSnapshot.scoreCentiseconds,
       displayTime: clockSnapshot.displayTime,
@@ -775,12 +834,14 @@ export class WebGLSaisupi {
       targets: this.targetRun.targets,
       row: die.row,
       column: die.column,
-      upperFace: die.top
+      upperFace: die.top,
+      completedAt: landedAt
     });
     if (!target) return null;
 
     const marker = this.targetMarkers.get(target.id);
     if (marker) marker.visible = false;
+    this.startLightPillar(target, landedAt);
 
     let finished = false;
     if (this.session.isRunComplete()) {
@@ -1054,6 +1115,7 @@ export class WebGLSaisupi {
     const now = this.getGameTime();
     this.updateRising(now);
     this.updateTimerFlash(now);
+    this.updateLightPillars(now);
     this.runAnimationFrameTasks();
     if (this.session.phase === P1_PHASES.RUNNING) {
       this.callbacks.onTick?.(this.getSnapshot());
@@ -1110,6 +1172,7 @@ export class WebGLSaisupi {
     this.canvas.removeEventListener('webglcontextrestored', this.handleContextRestored);
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     this.removeTargetMarkers();
+    this.removeLightPillars();
     for (const die of this.dice.values()) this.removeDie(die);
     this.dice.clear();
     disposeResources(this.resources);

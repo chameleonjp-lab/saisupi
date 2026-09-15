@@ -1,3 +1,8 @@
+import {
+  formatScoreCentiseconds,
+  scoreCentisecondsFromElapsedMs
+} from './saisupi-clock.js';
+
 export const P1_PHASES = Object.freeze({
   WAITING_FOR_CLIMB: 'WAITING_FOR_CLIMB',
   CLIMBING: 'CLIMBING',
@@ -20,6 +25,7 @@ export class SaisupiSession {
     this.queuedDirection = null;
     this.targets = [];
     this.completedTargetIds = new Set();
+    this.completedTargetAt = new Map();
     this.startedAt = null;
     this.finishedAt = null;
     return this.epoch;
@@ -75,6 +81,7 @@ export class SaisupiSession {
     }
     this.targets = Object.freeze(targets.map((target) => Object.freeze({ ...target })));
     this.completedTargetIds.clear();
+    this.completedTargetAt.clear();
     return this.targets;
   }
 
@@ -90,12 +97,41 @@ export class SaisupiSession {
     return true;
   }
 
-  completeTarget(targetId) {
+  completeTarget(targetId, completedAt = null) {
     if (this.phase !== P1_PHASES.RUNNING) return false;
     if (!this.targets.some((target) => target.id === targetId)) return false;
     if (this.completedTargetIds.has(targetId)) return false;
     this.completedTargetIds.add(targetId);
+    if (
+      Number.isFinite(completedAt)
+      && this.startedAt !== null
+      && completedAt >= this.startedAt
+    ) this.completedTargetAt.set(targetId, completedAt);
     return true;
+  }
+
+  getTargetTimings() {
+    return Object.freeze(this.targets.map((target, index) => {
+      const completedAt = this.completedTargetAt.get(target.id) ?? null;
+      const elapsedMs = completedAt === null || this.startedAt === null
+        ? null
+        : Math.max(0, completedAt - this.startedAt);
+      const scoreCentiseconds = elapsedMs === null
+        ? null
+        : scoreCentisecondsFromElapsedMs(elapsedMs);
+      return Object.freeze({
+        index: index + 1,
+        id: target.id,
+        value: target.value,
+        completed: this.completedTargetIds.has(target.id),
+        completedAt,
+        elapsedMs,
+        scoreCentiseconds,
+        displayTime: scoreCentiseconds === null
+          ? '--.--秒'
+          : formatScoreCentiseconds(scoreCentiseconds)
+      });
+    }));
   }
 
   isRunComplete() {

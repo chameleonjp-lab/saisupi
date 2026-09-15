@@ -71,9 +71,13 @@ export function findTargetAt(targets, row, column) {
   return targets.find((target) => target.row === row && target.column === column) ?? null;
 }
 
-export function judgeTargetLanding({ session, targets, row, column, upperFace }) {
+export function judgeTargetLanding({ session, targets, row, column, upperFace, completedAt = null }) {
   const target = findTargetAt(targets, row, column);
-  if (!target || target.value !== upperFace || !session.completeTarget(target.id)) {
+  if (
+    !target
+    || target.value !== upperFace
+    || !session.completeTarget(target.id, completedAt)
+  ) {
     return null;
   }
   return target;
