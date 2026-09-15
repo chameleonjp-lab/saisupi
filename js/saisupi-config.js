@@ -1,7 +1,8 @@
-export const SAISUPI_RULE_VERSION = 'p3-result-ranking-provisional-v1';
+export const SAISUPI_RULE_VERSION = 'p4-polish-ranking-provisional-v1';
 export const SAISUPI_GAME_SLUG = 'saisupi';
 export const SAISUPI_GAME_URL = 'https://chameleonjp-lab.github.io/saisupi/';
 export const CHAMELEONJP_LAB_URL = 'https://chameleonjp-lab.github.io/chameleonjp_lab/';
+export const SAISUPI_OG_IMAGE_URL = 'https://chameleonjp-lab.github.io/saisupi/assets/saisupi-og.jpg';
 export const SUPABASE_URL = 'https://mlpnjgezrnhdxsxolyzj.supabase.co';
 // ブラウザへ置ける publishable key のみを使用する。service_role は保存しない。
 export const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_drzcy0v97knU6FgjqSgBHw_0A9XPdFM';

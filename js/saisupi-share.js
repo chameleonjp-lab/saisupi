@@ -18,12 +18,6 @@ function formatScore(scoreCentiseconds) {
   return `${seconds}.${fraction}秒`;
 }
 
-function normalizeTiming(timing) {
-  if (!timing || !Number.isSafeInteger(timing.index) || timing.index < 1) return null;
-  if (!Number.isFinite(timing.elapsedMs) || timing.elapsedMs < 0) return null;
-  return `${timing.index}:${formatScore(Math.floor(timing.elapsedMs / 10))}`;
-}
-
 export function normalizeShareUrl(pageUrl) {
   const url = new URL(pageUrl);
   url.search = '';
@@ -35,9 +29,8 @@ export function createHomeShareContent({ pageUrl }) {
   const url = normalizeShareUrl(pageUrl);
   const text = [
     'サイスピ',
-    'サイコロを転がし、10個の目を上面にそろえるタイムアタックゲームです。',
-    `URL: ${url}`,
-    '#サイスピ'
+    'サイコロを転がし、10個の目を揃えるタイムアタックゲーム',
+    url
   ].join('\n');
 
   return Object.freeze({
@@ -50,28 +43,21 @@ export function createHomeShareContent({ pageUrl }) {
 
 export function createResultShareContent({
   result,
-  recordMessage = '結果を記録しました',
   pageUrl
 }) {
-  if (!result || typeof recordMessage !== 'string' || !recordMessage.trim()) {
-    throw new TypeError('result and record message are required');
+  if (!result) {
+    throw new TypeError('result is required');
   }
 
-  const score = requireScore(result.scoreCentiseconds);
-  const timings = Array.isArray(result.targetTimings)
-    ? result.targetTimings.map(normalizeTiming).filter(Boolean)
-    : [];
   const url = normalizeShareUrl(pageUrl);
-  const lines = [
-    `サイスピで${formatScore(score)}！`,
-    recordMessage.trim()
-  ];
-  if (timings.length > 0) lines.push(`達成タイム（1〜10） ${timings.join(' / ')}`);
-  lines.push(`URL: ${url}`, '#サイスピ');
+  const lines = Number.isSafeInteger(result.scoreCentiseconds)
+    && result.scoreCentiseconds >= 0
+    ? [`サイスピを ${formatScore(requireScore(result.scoreCentiseconds))} でクリア`, url]
+    : ['サイスピをプレイしました', url];
   const text = lines.join('\n');
 
   return Object.freeze({
-    title: 'サイスピの結果',
+    title: 'サイスピ',
     text,
     url,
     copyText: text

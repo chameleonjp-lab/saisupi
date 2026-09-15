@@ -2,9 +2,12 @@ export const SOUND_PREFERENCE_KEY = 'saisupi:sound-enabled:v1';
 
 function readStoredPreference(storage) {
   try {
-    return storage?.getItem(SOUND_PREFERENCE_KEY) === 'true';
+    const stored = storage?.getItem(SOUND_PREFERENCE_KEY);
+    if (stored === 'true') return true;
+    if (stored === 'false') return false;
+    return true;
   } catch {
-    return false;
+    return true;
   }
 }
 
