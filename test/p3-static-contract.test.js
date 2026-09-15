@@ -25,7 +25,7 @@ test('P4のホーム・結果画面に共有、再プレイ、ランキング、
   ]) assert.match(index, new RegExp(`id="${id}"`, 'u'));
   assert.match(index, /chameleonjp-lab\.github\.io\/chameleonjp_lab\//u);
   assert.match(index, /class="home-steps"/u);
-  assert.match(index, /og:image.*saisupi-og\.jpg/us);
+  assert.match(index, /og:image.*saisupi-og-v2\.jpg/us);
 });
 
 test('一致時の光柱とテッテレーSEは3秒の成功イベントへ接続する', () => {

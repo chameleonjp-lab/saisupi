@@ -18,7 +18,7 @@
 - ホーム説明を3ステップにし、ゲーム画面下部の状況説明を視覚表示から外した。ゲーム画面右上にリタイアを追加し、リタイア後は結果画面へ進む。
 - 結果画面に自己ベスト、詳細10件、上位10件、自己ベストと詳細の間の再プレイ、共有、ホーム、実験場を配置した。結果画面はサイノメの濃紺・金色のカード構成へ寄せた。
 - ホーム共有文と結果共有文は、URLを`URL:`やハッシュタグへ変換せず、次の行へそのまま書く。共有APIにはURLプロパティを渡さない。
-- `assets/saisupi-og.jpg`（1200×630）を追加し、Open Graph/Twitterのサムネイルへ適用した。ゲーム名、盤面、サイコロ、黄色いキャラクターを含む。
+- `assets/saisupi-og-v2.jpg`（1536×805）へ添付画像を差し替え、Open Graph/Twitterのサムネイルへ適用した。ゲーム名、盤面、サイコロ、黄色いキャラクターを含む。
 - Supabaseクライアントは公開用publishable keyだけを使い、`public.games`の`saisupi`登録を先に確認する。未登録時はランキングを公開済みと表示せず「準備中」とする。今回、サイスピ用の登録行を追加した。
 
 ## 共有文
@@ -42,7 +42,7 @@ https://chameleonjp-lab.github.io/saisupi/
 
 - `npm test`: 47件成功
 - `npm run check:syntax`: 38ファイル成功
-- OGP画像: 1200×630 JPEGを生成・目視確認済み
+- OGP画像: `saisupi-og-v2.jpg`（1536×805 JPEG）を目視確認済み
 - Supabase: `saisupi`を`score_order=asc`、`score_scale=100`、`score_decimals=2`、`submission_mode=shared`、有効状態で登録済みであることを確認
 - Supabase実通信: 公開用キーで登録確認、`record_game_play`、`submit_score`、`get_best_score_ranking`を一時的な検証名で実行し、成功後に検証データを削除
 - Supabaseの既存テーブル権限・RLS・RPCは変更していない。セキュリティ助言には既存の共有ランキング関数などに関する警告があるが、今回の登録で新たに作られたものではない

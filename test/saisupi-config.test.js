@@ -35,7 +35,7 @@ test('P1は7×7盤面の中央に埋まったサイコロを置く', () => {
 test('P5の暫定設定と共有画像URLを公開する', () => {
   assert.equal(SAISUPI_RULE_VERSION, 'p5-visual-polish-v1');
   assert.equal(SAISUPI_GAME_SLUG, 'saisupi');
-  assert.equal(SAISUPI_OG_IMAGE_URL, 'https://chameleonjp-lab.github.io/saisupi/assets/saisupi-og.jpg');
+  assert.equal(SAISUPI_OG_IMAGE_URL, 'https://chameleonjp-lab.github.io/saisupi/assets/saisupi-og-v2.jpg');
   assert.match(SUPABASE_URL, /^https:\/\/.+\.supabase\.co$/u);
   assert.match(SUPABASE_PUBLISHABLE_KEY, /^sb_publishable_/u);
   assert.doesNotMatch(SUPABASE_PUBLISHABLE_KEY, /service_role|secret/iu);
