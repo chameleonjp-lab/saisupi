@@ -16,7 +16,7 @@
 - URLを本文へ直接書く共有文、3ステップの説明、カメレオンJPの実験場リンク
 - 既存Supabase RPCを使うプレイ開始記録・スコア登録・上位10件取得、自己ベストとランキング表示
 
-配置案A・独立等確率の目生成・0.01秒未満切捨ては、未確定事項を明示した暫定実装です。長押しコピー抑止、効果音デフォルトオン、OGPサムネイル、リタイアと再プレイもP4で追加しました。Supabase側の本番ゲーム登録・権限変更は行っていないため、`saisupi`の登録がない環境ではオンライン部分だけ準備中になります。検査結果と未確認事項は [P4実装記録](docs/P4_IMPLEMENTATION.md)、[P3実装記録](docs/P3_IMPLEMENTATION.md)、[P2実装記録](docs/P2_IMPLEMENTATION.md)、[P1実装記録](docs/P1_IMPLEMENTATION.md) にまとめています。
+配置案A・独立等確率の目生成・0.01秒未満切捨ては、未確定事項を明示した暫定実装です。長押しコピー抑止、効果音デフォルトオン、OGPサムネイル、リタイアと再プレイもP4で追加しました。Supabase側にはサイスピ用の`saisupi`を登録済みで、公開用キーによる登録確認・プレイ開始記録・スコア登録・上位10件取得の実通信を確認しています。検査結果と未確認事項は [P4実装記録](docs/P4_IMPLEMENTATION.md)、[Supabaseランキング連携確認](docs/SUPABASE_RANKING_SETUP.md)、[P3実装記録](docs/P3_IMPLEMENTATION.md)、[P2実装記録](docs/P2_IMPLEMENTATION.md)、[P1実装記録](docs/P1_IMPLEMENTATION.md) にまとめています。
 
 ## 計画書
 
@@ -29,5 +29,4 @@
 
 ## 開発上の制限
 
-作業の許可範囲と提出条件は [AGENTS.md](AGENTS.md) を参照してください。元の `sainome`、本番データベース、権限は変更しません。GitHub Pagesの公開設定はActions方式です。P4実装はDraft PRで提出し、mainへ直接push・マージしません。
-
+作業の許可範囲と提出条件は [AGENTS.md](AGENTS.md) を参照してください。元の `sainome`と既存の本番権限は変更しません。今回の依頼では、Supabaseへサイスピ専用のゲーム登録を追加しました。GitHub Pagesの公開設定はActions方式です。変更はDraft PRで提出し、mainへ直接push・マージしません。

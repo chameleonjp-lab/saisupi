@@ -4,7 +4,7 @@
 
 ## 対象
 
-基準は `chameleonjp-lab/saisupi@e665c3ea37e048ab0dc7caaa8ea68b2b90c6142d`。P3で追加済みの結果・共有・Supabaseクライアントを維持し、公開前の画面と演出を整えた。
+基準は `chameleonjp-lab/saisupi@9632386d2887fb2a6297b26dff315e87d6d4ae5d`。P3で追加済みの結果・共有・Supabaseクライアントを維持し、公開前の画面と演出を整えた。
 
 ## 実装内容
 
@@ -16,7 +16,7 @@
 - 結果画面に自己ベスト、詳細10件、上位10件、自己ベストと詳細の間の再プレイ、共有、ホーム、実験場を配置した。結果画面はサイノメの濃紺・金色のカード構成へ寄せた。
 - ホーム共有文と結果共有文は、URLを`URL:`やハッシュタグへ変換せず、次の行へそのまま書く。共有APIにはURLプロパティを渡さない。
 - `assets/saisupi-og.jpg`（1200×630）を追加し、Open Graph/Twitterのサムネイルへ適用した。ゲーム名、盤面、サイコロ、黄色いキャラクターを含む。
-- Supabaseクライアントは公開用publishable keyだけを使い、`public.games`の`saisupi`登録を先に確認する。未登録時はランキングを公開済みと表示せず「準備中」とする。
+- Supabaseクライアントは公開用publishable keyだけを使い、`public.games`の`saisupi`登録を先に確認する。未登録時はランキングを公開済みと表示せず「準備中」とする。今回、サイスピ用の登録行を追加した。
 
 ## 共有文
 
@@ -40,11 +40,12 @@ https://chameleonjp-lab.github.io/saisupi/
 - `npm test`: 43件成功
 - `npm run check:syntax`: 36ファイル成功
 - OGP画像: 1200×630 JPEGを生成・目視確認済み
-- Supabase: `saisupi`登録の有無を読み取り確認。現時点では登録行なし
-- ブラウザ/WebGL描画、iPhone 17 Pro Safari、登録済みSupabaseでの実通信: 未実施
+- Supabase: `saisupi`を`score_order=asc`、`score_scale=100`、`score_decimals=2`、`submission_mode=shared`、有効状態で登録済みであることを確認
+- Supabase実通信: 公開用キーで登録確認、`record_game_play`、`submit_score`、`get_best_score_ranking`を一時的な検証名で実行し、成功後に検証データを削除
+- Supabaseの既存テーブル権限・RLS・RPCは変更していない。セキュリティ助言には既存の共有ランキング関数などに関する警告があるが、今回の登録で新たに作られたものではない
+- ブラウザ/WebGL描画、iPhone 17 Pro Safari: 未実施
 - 独立レビュー: 提出前に依頼する。完了結果を取得できない場合は未完了としてPRへ記載する。
 
 ## 残る条件
 
-本番ランキングを公開するには、所有者がSupabaseの`public.games`へ`saisupi`を登録し、既存RPCがこのゲームIDを受け付けることを確認する必要がある。本PRでは本番データベース、権限、RLS、実験場登録を変更していない。詳細は[Supabaseランキング公開準備](SUPABASE_RANKING_SETUP.md)を参照する。
-
+本番ランキング用のゲーム登録と、既存RPCが`saisupi`を受け付ける実通信確認は完了した。残る受入条件は、独立レビュー、GitHub Actions、ブラウザ/WebGL、iPhone Safariでの確認である。本対応では既存のテーブル権限、RLS、RPC、実験場登録は変更していない。詳細は[Supabaseランキング連携確認](SUPABASE_RANKING_SETUP.md)を参照する。
