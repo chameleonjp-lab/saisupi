@@ -66,6 +66,35 @@ test('露出完了後だけ計測を開始し、10地点を一度ずつ完了で
   assert.equal(session.completeTarget('target-01'), false);
 });
 
+test('各目標の達成時刻を開始からの経過時間として保持する', () => {
+  const session = new SaisupiSession();
+  const targets = Array.from({ length: 10 }, (_, index) => ({
+    id: 'target-' + String(index + 1).padStart(2, '0'),
+    row: 1,
+    column: index,
+    value: 1
+  }));
+  session.setTargets(targets);
+  session.setPhase(P1_PHASES.RISING);
+  assert.equal(session.startRunning(1000), true);
+  assert.equal(session.completeTarget('target-01', 1321), true);
+  assert.equal(session.completeTarget('target-02', 2456), true);
+
+  const timings = session.getTargetTimings();
+  assert.deepEqual(timings[0], {
+    index: 1,
+    id: 'target-01',
+    value: 1,
+    completed: true,
+    completedAt: 1321,
+    elapsedMs: 321,
+    scoreCentiseconds: 32,
+    displayTime: '0.32秒'
+  });
+  assert.equal(timings[1].displayTime, '1.45秒');
+  assert.equal(timings[9].completed, false);
+});
+
 test('アニメーション中断時は実行状態とターゲットを保持し、入力キューだけ破棄する', () => {
   const session = new SaisupiSession();
   session.setTargets(Array.from({ length: 10 }, (_, index) => ({ id: 'target-' + index })));

@@ -8,7 +8,10 @@ import {
   INITIAL_BURIED_DIE,
   INITIAL_PLAYER_POSITION,
   RISE_DURATION,
+  SAISUPI_GAME_SLUG,
   SAISUPI_RULE_VERSION,
+  SUPABASE_PUBLISHABLE_KEY,
+  SUPABASE_URL,
   TARGET_GENERATION_VERSION,
   TARGET_LAYOUT_VERSION,
   TARGET_POSITIONS
@@ -29,7 +32,11 @@ test('P1は7×7盤面の中央に埋まったサイコロを置く', () => {
 });
 
 test('P2の暫定設定は版付きで10座標を公開する', () => {
-  assert.equal(SAISUPI_RULE_VERSION, 'p2-target-time-provisional-v1');
+  assert.equal(SAISUPI_RULE_VERSION, 'p3-result-ranking-provisional-v1');
+  assert.equal(SAISUPI_GAME_SLUG, 'saisupi');
+  assert.match(SUPABASE_URL, /^https:\/\/.+\.supabase\.co$/u);
+  assert.match(SUPABASE_PUBLISHABLE_KEY, /^sb_publishable_/u);
+  assert.doesNotMatch(SUPABASE_PUBLISHABLE_KEY, /service_role|secret/iu);
   assert.equal(TARGET_LAYOUT_VERSION, 'layout-a-provisional-v1');
   assert.equal(TARGET_GENERATION_VERSION, 'independent-uniform-v1');
   assert.equal(TARGET_POSITIONS.length, 10);
