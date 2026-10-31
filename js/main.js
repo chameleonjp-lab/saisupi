@@ -600,15 +600,18 @@ async function handleHomeShare() {
   try {
     const content = createHomeShareContent({ pageUrl: SAISUPI_GAME_URL || window.location.href });
     const status = await shareResult(content);
+    const fallback = document.querySelector('#home-share-fallback');
+    fallback.value = content.copyText;
+    fallback.hidden = status !== RESULT_SHARE_STATUSES.FAILED;
     homeShareStatus.textContent = {
-      [RESULT_SHARE_STATUSES.SHARED]: 'ゲームを共有しました',
+      [RESULT_SHARE_STATUSES.SHARED]: 'Xの投稿画面を開きました',
       [RESULT_SHARE_STATUSES.COPIED]: 'シェア文をコピーしました',
       [RESULT_SHARE_STATUSES.CANCELLED]: '共有をキャンセルしました',
-      [RESULT_SHARE_STATUSES.FAILED]: 'シェア文をコピーできませんでした'
+      [RESULT_SHARE_STATUSES.FAILED]: '下のシェア文を選択してコピーできます'
     }[status];
   } catch (error) {
     console.error(error);
-    homeShareStatus.textContent = 'シェア文をコピーできませんでした';
+    homeShareStatus.textContent = '下のシェア文を選択してコピーできます';
   }
 }
 
@@ -621,15 +624,18 @@ async function handleResultShare() {
       pageUrl: SAISUPI_GAME_URL || window.location.href
     });
     const status = await shareResult(content);
+    const fallback = document.querySelector('#result-share-fallback');
+    fallback.value = content.copyText;
+    fallback.hidden = status !== RESULT_SHARE_STATUSES.FAILED;
     resultShareStatus.textContent = {
-      [RESULT_SHARE_STATUSES.SHARED]: '結果を共有しました',
+      [RESULT_SHARE_STATUSES.SHARED]: 'Xの投稿画面を開きました',
       [RESULT_SHARE_STATUSES.COPIED]: '結果のシェア文をコピーしました',
       [RESULT_SHARE_STATUSES.CANCELLED]: '共有をキャンセルしました',
-      [RESULT_SHARE_STATUSES.FAILED]: 'シェア文をコピーできませんでした'
+      [RESULT_SHARE_STATUSES.FAILED]: '下のシェア文を選択してコピーできます'
     }[status];
   } catch (error) {
     console.error(error);
-    resultShareStatus.textContent = 'シェア文をコピーできませんでした';
+    resultShareStatus.textContent = '下のシェア文を選択してコピーできます';
   }
 }
 

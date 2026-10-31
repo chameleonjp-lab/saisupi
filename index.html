@@ -74,9 +74,10 @@
         <p id="player-name-error" class="form-error" role="alert" hidden></p>
         <div class="home-actions">
           <button id="start-button" class="primary-button" type="button">ゲームを始める</button>
-          <button id="home-share-button" class="secondary-button" type="button">ゲームをシェア</button>
+          <button id="home-share-button" class="secondary-button" type="button">Xでシェア</button>
           <a id="home-lab-link" class="secondary-button lab-link" href="https://chameleonjp-lab.github.io/chameleonjp_lab/ranking.html?game=saisupi">カメレオンJPの実験場</a>
         </div>
+        <textarea id="home-share-fallback" readonly hidden aria-label="シェア文"></textarea>
         <p id="home-share-status" class="share-status" role="status" aria-live="polite"></p>
         <p id="home-error" class="form-error" role="alert" hidden></p>
       </div>
@@ -155,10 +156,11 @@
 
         <div class="result-actions">
           <button id="replay-button" class="primary-button" type="button">もう一度プレイ</button>
-          <button id="result-share-button" class="secondary-button" type="button">結果をシェア</button>
+          <button id="result-share-button" class="secondary-button" type="button">Xでシェア</button>
           <button id="result-home-button" class="secondary-button" type="button">ホーム画面に戻る</button>
           <a id="result-lab-link" class="secondary-button lab-link" href="https://chameleonjp-lab.github.io/chameleonjp_lab/ranking.html?game=saisupi">カメレオンJPの実験場</a>
         </div>
+        <textarea id="result-share-fallback" readonly hidden aria-label="シェア文"></textarea>
         <p id="result-share-status" class="share-status" role="status" aria-live="polite"></p>
       </div>
     </section>

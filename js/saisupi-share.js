@@ -64,16 +64,6 @@ export function createResultShareContent({
   });
 }
 
-function supportsShare(navigatorObject, shareData) {
-  if (typeof navigatorObject?.share !== 'function') return false;
-  if (typeof navigatorObject.canShare !== 'function') return true;
-  try {
-    return navigatorObject.canShare(shareData);
-  } catch {
-    return false;
-  }
-}
-
 async function copyShareText(navigatorObject, text) {
   if (typeof navigatorObject?.clipboard?.writeText !== 'function') return false;
   try {
@@ -84,16 +74,16 @@ async function copyShareText(navigatorObject, text) {
   }
 }
 
-export async function shareResult(content, navigatorObject = globalThis.navigator) {
-  const shareData = { title: content.title, text: content.text };
-  if (supportsShare(navigatorObject, shareData)) {
-    try {
-      await navigatorObject.share(shareData);
+export async function shareResult(content, navigatorObject = globalThis.navigator, windowObject = globalThis.window) {
+  const intent = new URL('https://x.com/intent/post');
+  intent.searchParams.set('text', content.text);
+  try {
+    const popup = windowObject?.open(intent.href, '_blank');
+    if (popup) {
+      popup.opener = null;
       return RESULT_SHARE_STATUSES.SHARED;
-    } catch (error) {
-      if (error?.name === 'AbortError') return RESULT_SHARE_STATUSES.CANCELLED;
     }
-  }
+  } catch { /* Copy remains available when a popup is blocked. */ }
   const copied = await copyShareText(navigatorObject, content.copyText);
   return copied ? RESULT_SHARE_STATUSES.COPIED : RESULT_SHARE_STATUSES.FAILED;
 }

@@ -36,18 +36,19 @@ test('結果共有文はスコアとテキストURLの2行にする', () => {
   assert.doesNotMatch(content.text, /URL:|#サイスピ/u);
 });
 
-test('共有APIへURLプロパティを渡さず、本文へ渡す', async () => {
-  let shared = null;
-  const status = await shareResult(
-    { title: 'サイスピ', text: 'サイスピ\nhttps://example.test/saisupi/', copyText: 'copy' },
-    {
-      canShare: () => true,
-      share: async (data) => { shared = data; }
-    }
-  );
-  assert.equal(status, RESULT_SHARE_STATUSES.SHARED);
-  assert.deepEqual(shared, {
-    title: 'サイスピ',
-    text: 'サイスピ\nhttps://example.test/saisupi/'
+test('Xへ本文と改行・記号を正確に渡し、投稿完了とは扱わない', async () => {
+  let opened;
+  const text = 'サイスピ & #\nhttps://example.test/saisupi/';
+  const status = await shareResult({text, copyText:text}, {}, {
+    open(url) { opened=url; return {opener:{}}; }
   });
+  assert.equal(status, RESULT_SHARE_STATUSES.SHARED);
+  assert.equal(new URL(opened).searchParams.get('text'), text);
+  assert.equal(new URL(opened).origin, 'https://x.com');
+});
+test('ポップアップが開けない場合に本文をコピーする', async () => {
+  let copied;
+  const status = await shareResult({text:'text',copyText:'text'}, {clipboard:{async writeText(text){copied=text;}}}, {open(){return null;}});
+  assert.equal(status,RESULT_SHARE_STATUSES.COPIED);
+  assert.equal(copied,'text');
 });
