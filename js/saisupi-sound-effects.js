@@ -1,3 +1,5 @@
+export const VOLUME_PREFERENCE_KEY = 'saisupi:sound-volume:v1';
+
 export const SOUND_PREFERENCE_KEY = 'saisupi:sound-enabled:v1';
 
 function readStoredPreference(storage) {
@@ -42,6 +44,8 @@ export class SoundEffects {
     this.contextFactory = contextFactory;
     this.random = random;
     this.enabled = readStoredPreference(storage);
+    this.volume = 1;
+    try { const raw=storage?.getItem(VOLUME_PREFERENCE_KEY);const value=Number(raw);if(raw!==null && raw!==undefined && Number.isFinite(value)&&value>=0&&value<=1)this.volume=value; } catch {}
     this.context = null;
     this.masterGain = null;
     this.noiseBuffer = null;
@@ -56,6 +60,7 @@ export class SoundEffects {
   getSnapshot() {
     return Object.freeze({
       enabled: this.enabled,
+      volume: this.volume,
       available: !this.audioUnavailable,
       running: this.context?.state === 'running',
       state: this.context?.state ?? null
@@ -68,6 +73,14 @@ export class SoundEffects {
     if (this.enabled) await this.unlock();
     else await this.suspend();
     return this.getSnapshot();
+  }
+
+  setVolume(value) {
+    if (!Number.isFinite(value) || value < 0 || value > 1) return;
+    this.volume = value;
+    try { this.storage?.setItem(VOLUME_PREFERENCE_KEY,String(value)); } catch {}
+    if (value === 0) this.stopActiveSounds();
+    if (this.context && this.masterGain) this.masterGain.gain.setValueAtTime(0.42 * value,this.context.currentTime);
   }
 
   ensureContext() {
@@ -85,7 +98,7 @@ export class SoundEffects {
     }
     try {
       this.masterGain = context.createGain();
-      this.masterGain.gain.setValueAtTime(0.42, context.currentTime);
+      this.masterGain.gain.setValueAtTime(0.42 * this.volume, context.currentTime);
       this.masterGain.connect(context.destination);
       this.context = context;
       this.noiseBuffer = null;
@@ -118,12 +131,12 @@ export class SoundEffects {
   }
 
   async unlockAudioContext() {
-    if (!this.enabled || this.hidden) return false;
+    if (!this.enabled || this.volume === 0 || this.hidden) return false;
     const context = this.ensureContext();
     if (!context) return false;
     try {
       if (context.state === 'suspended' || context.state === 'interrupted') await context.resume();
-      if (!this.enabled || this.hidden) {
+      if (!this.enabled || this.volume === 0 || this.hidden) {
         await this.suspend();
         return false;
       }
@@ -148,11 +161,11 @@ export class SoundEffects {
   }
 
   getPlayableContext() {
-    return this.enabled && this.context?.state === 'running' ? this.context : null;
+    return this.enabled && this.volume > 0 && !this.hidden && this.context?.state === 'running' ? this.context : null;
   }
 
   releaseContext(context) {
-    if (this.context !== context) return;
+    if (!context || this.context !== context) return;
     context.removeEventListener?.('statechange', this.stateChangeHandler);
     if (!context.removeEventListener && context.onstatechange === this.stateChangeHandler) {
       context.onstatechange = null;

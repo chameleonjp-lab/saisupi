@@ -31,3 +31,13 @@ test('効果音は保存された明示的なオフ以外ではデフォルト�
   assert.equal(onSound.getSnapshot().enabled, true);
   assert.equal(SOUND_PREFERENCE_KEY, 'saisupi:sound-enabled:v1');
 });
+
+test('volume zero is preserved and does not initialize audio',async()=>{
+ const values=new Map([['saisupi:sound-volume:v1','0']]);let contexts=0;
+ const sound=new SoundEffects({storage:{getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)},contextFactory:()=>{contexts++;return null;}});
+ assert.equal(sound.getSnapshot().volume,0);await sound.unlock();assert.equal(contexts,0);
+ sound.setVolume(0.5);assert.equal(values.get('saisupi:sound-volume:v1'),'0.5');
+ sound.setVolume(0);assert.equal(values.get('saisupi:sound-volume:v1'),'0');
+});
+
+test('disposing before audio initialization and twice is safe',()=>{const sound=new SoundEffects({storage:null,contextFactory:()=>null});assert.doesNotThrow(()=>sound.dispose());assert.doesNotThrow(()=>sound.dispose());});

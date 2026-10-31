@@ -4,6 +4,12 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "check:syntax": "node scripts/check-syntax.js"
+    "check:syntax": "node scripts/check-syntax.js",
+    "test:browser": "node scripts/browser-common.mjs",
+    "test:browser:real": "node scripts/browser-real.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1",
+    "three": "0.185.1"
   }
 }

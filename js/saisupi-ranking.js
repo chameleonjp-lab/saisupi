@@ -1,6 +1,6 @@
 import { SAISUPI_GAME_SLUG } from './saisupi-config.js';
 
-export const RANKING_LIMIT = 10;
+export const RANKING_LIMIT = 30;
 export const RANKING_CLIENT_VERSION = 'saisupi-web-1';
 const MAX_SCORE = 100_000_000;
 
@@ -94,6 +94,7 @@ function parseSubmitResponse(data, expected) {
     || row.result_play_count < 1
     || typeof row.is_first_play !== 'boolean'
     || typeof row.is_new_best !== 'boolean'
+    || typeof row.was_duplicate !== 'boolean'
   ) throw new RankingError('invalid-response', 'スコア登録の応答が不正です');
   return Object.freeze({
     accepted: true,
@@ -243,20 +244,23 @@ export class RankingClient {
     return parseStartResponse(await this.#rpc('record_game_play', parameters), expected);
   }
 
-  async submitScore({ displayName, score }) {
+  async submitScore({ displayName, score, submissionId, clientVersion = RANKING_CLIENT_VERSION }) {
+    if (typeof submissionId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(submissionId)) throw new TypeError('submissionId must be a UUID');
+    if(typeof clientVersion !== 'string' || !clientVersion || clientVersion.length>128)throw new TypeError('clientVersion is invalid');
     const expected = {
       displayName: requireDisplayName(displayName),
       gameSlug: SAISUPI_GAME_SLUG,
       score: requireScore(score)
     };
     const parameters = {
+      p_submission_id: submissionId,
       p_display_name: expected.displayName,
       p_game_slug: expected.gameSlug,
       p_score: expected.score,
-      p_client_version: RANKING_CLIENT_VERSION
+      p_client_version: clientVersion
     };
     await this.#ensureGameRegistration();
-    return parseSubmitResponse(await this.#rpc('submit_score', parameters), expected);
+    return parseSubmitResponse(await this.#rpc('submit_score_once_shared_v1', parameters), expected);
   }
 
   async getTopRanking() {

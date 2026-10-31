@@ -17,8 +17,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
       - name: Verify and package
         run: npm test && npm run check:syntax && node scripts/prepare-pages.mjs
+      - run: npm run test:browser
+      - run: PW_BROWSER=webkit npm run test:browser
+      - run: npm run test:browser:real
+      - run: PW_BROWSER=webkit npm run test:browser:real
       - name: Upload verified game
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3

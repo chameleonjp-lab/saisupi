@@ -805,3 +805,15 @@ img {
 #home-share-button, #result-share-button { background: #000; color: #fff; min-height: 44px; white-space: normal; overflow-wrap: anywhere; }
 #home-share-fallback, #result-share-fallback { width: 100%; min-height: 6em; font-size: 16px; }
 [hidden] { display: none !important; }
+
+.language-field, .sound-volume { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.language-field select, .sound-volume input { min-height:44px; max-width:100%; font-size:16px; }
+.player-name-field, .result-ranking li, .result-actions, .home-actions, .home-steps { overflow-wrap:anywhere; }
+.app-footer { flex-wrap:wrap; }
+/* Settings remain reachable on home/results; reserve space for the fixed footer. */
+.app-footer { display:flex; gap:10px; align-items:center; justify-content:center; }
+.sound-toggle { min-height:44px; font-size:0.85rem; }
+.sound-volume { pointer-events:auto; padding:4px 10px; border-radius:12px; background:rgba(9,11,17,.94); color:#fff; }
+.sound-volume input { width:130px; }
+.home-card, .result-card { margin-bottom:110px; }
+.app[data-screen="playing"] ~ .app-footer .sound-volume { display:none; }
