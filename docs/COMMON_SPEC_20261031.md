@@ -64,7 +64,7 @@
 
 ## 検証
 
-node test60件、構文検査、許可リスト配信パッケージを実行。Chromium/WebKitで15言語すべてのUI・共有・匿名/空白・開始名固定・名前消去後の過去結果・応答喪失・複数失敗結果・1件だけack・リロード復元・同点30名・X・音off/0・言語保存をmock通信で確認した。このUI試験では描画器をfixtureへ置換している。
+node test61件、構文検査、許可リスト配信パッケージを実行。Chromium/WebKitで15言語すべてのUI・共有・匿名/空白・開始名固定・名前消去後の過去結果・応答喪失・複数失敗結果・1件だけack・リロード復元・同点30名・X・音off/0・言語保存をmock通信で確認した。このUI試験では描画器をfixtureへ置換している。
 
 別の実3D試験では、CDNと同一のThree.js0.185.1をローカル配信し、Chromium/WebKit両方で実際の盤面生成、匿名開始、方向操作、サイコロへの登り/上昇、10目標の生成、言語変更で目標/位置/時計を戻さないこと、リタイアを確認した。端末実機Safariではない。
 
@@ -92,3 +92,5 @@ GitHub Pages Source は `GitHub Actions`（workflow）をAPIで確認。
 ### 再現コマンド
 
 `npm ci && npm test && npm run check:syntax`、`npx playwright install --with-deps chromium webkit`、`npm run test:browser`、`PW_BROWSER=webkit npm run test:browser`、`npm run test:browser:real`、`PW_BROWSER=webkit npm run test:browser:real`。実データを書かないfixtures/ローカル配信のみ。
+
+不正/欠落したスコア応答でも送信UUIDを消費せず、同じ名前・点数・clientVersion・UUIDで再試行できる回帰テストを追加した。エラーは結果画面と未送信一覧に保持し、成功したとみなさない。

@@ -136,3 +136,16 @@ test('lost acknowledgement retries the exact receipt and never calls legacy subm
  await assert.rejects(client.submitScore(result));await client.submitScore(result);
  assert.deepEqual(calls[0].body,calls[1].body);assert.equal(calls[0].body.p_submission_id,result.submissionId);
 });
+
+test('malformed ACK does not consume the receipt and retry uses its unchanged payload',async()=>{
+ const calls=[];let attempts=0;
+ const client=new RankingClient({url:'https://example.supabase.co',publishableKey:'sb_publishable_test_key_123456789',fetchImpl:async(url,options)=>{
+  if(url.includes('/games?'))return response([{game_slug:'saisupi',is_active:true,score_order:'asc'}]);
+  calls.push(JSON.parse(options.body));
+  if(++attempts===1)return response([{was_duplicate:false}]);
+  return response([{accepted:true,result_display_name:'元名',result_best_score:1234,result_play_count:1,is_first_play:true,is_new_best:true,was_duplicate:true}]);
+ }});
+ const frozen={displayName:'元名',score:1234,submissionId:'00000000-0000-4000-8000-000000000042',clientVersion:'original-client'};
+ await assert.rejects(client.submitScore(frozen),error=>error.code==='invalid-response');
+ await client.submitScore(frozen);assert.equal(calls.length,2);assert.deepEqual(calls[0],calls[1]);
+});
