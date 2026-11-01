@@ -1,4 +1,5 @@
 export default {
+  "保存結果を確認できません。元のデータは保持しています。": "Le résultat enregistré ne peut pas être vérifié. Les données originales sont conservées.",
   "10個すべてをそろえた時間がスコアになります。": "Votre score est le temps nécessaire pour réussir les 10 cibles.",
   "10個の目をそろえるタイムアタックです。": "Un contre-la-montre pour reproduire 10 valeurs cibles.",
   "10個を早くそろえる": "Réussissez les 10 cibles rapidement",

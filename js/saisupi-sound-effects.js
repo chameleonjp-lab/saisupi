@@ -80,7 +80,7 @@ export class SoundEffects {
     this.volume = value;
     try { this.storage?.setItem(VOLUME_PREFERENCE_KEY,String(value)); } catch {}
     if (value === 0) this.stopActiveSounds();
-    if (this.context && this.masterGain) this.masterGain.gain.setValueAtTime(0.42 * value,this.context.currentTime);
+    try { if (this.context && this.masterGain) this.masterGain.gain.setValueAtTime(0.42 * value,this.context.currentTime); } catch {}
   }
 
   ensureContext() {
@@ -113,7 +113,10 @@ export class SoundEffects {
       if (!context.addEventListener) context.onstatechange = this.stateChangeHandler;
       return context;
     } catch {
+      try { this.masterGain?.disconnect?.(); } catch {}
       this.releaseContext(context);
+      this.masterGain = null;
+      try { Promise.resolve(context.close?.()).catch(() => {}); } catch {}
       this.audioUnavailable = true;
       return null;
     }
@@ -181,8 +184,8 @@ export class SoundEffects {
     const activeSound = { node, linkedNodes };
     const cleanup = () => {
       if (!this.activeSounds.delete(activeSound)) return;
-      node.disconnect?.();
-      for (const linkedNode of linkedNodes) linkedNode.disconnect?.();
+      try { node.disconnect?.(); } catch {}
+      for (const linkedNode of linkedNodes) { try { linkedNode.disconnect?.(); } catch {} }
     };
     activeSound.cleanup = cleanup;
     this.activeSounds.add(activeSound);
@@ -215,10 +218,14 @@ export class SoundEffects {
   }
 
   playTone({ when, frequency, endFrequency = frequency, duration, gain, type = 'sine' }) {
+    let created = [];
+    try {
     const context = this.getPlayableContext();
     if (!context) return false;
     const oscillator = context.createOscillator();
+    created.push(oscillator);
     const envelope = context.createGain();
+    created.push(envelope);
     oscillator.type = type;
     oscillator.frequency.setValueAtTime(Math.max(1, frequency), when);
     oscillator.frequency.exponentialRampToValueAtTime(Math.max(1, endFrequency), when + duration);
@@ -231,14 +238,20 @@ export class SoundEffects {
     oscillator.start(when);
     oscillator.stop(when + duration + 0.01);
     return true;
+    } catch { for (const node of created) { try { node.stop?.(); } catch {} try { node.disconnect?.(); } catch {} } this.stopActiveSounds(); return false; }
   }
 
   playNoise({ when, duration, gain, frequency, type = 'bandpass', q = 0.9 }) {
+    let created = [];
+    try {
     const context = this.getPlayableContext();
     if (!context) return false;
     const source = context.createBufferSource();
+    created.push(source);
     const filter = context.createBiquadFilter();
+    created.push(filter);
     const envelope = context.createGain();
+    created.push(envelope);
     source.buffer = this.createNoiseBuffer(context);
     filter.type = type;
     filter.frequency.setValueAtTime(frequency, when);
@@ -252,6 +265,7 @@ export class SoundEffects {
     source.start(when);
     source.stop(when + duration + 0.01);
     return true;
+    } catch { for (const node of created) { try { node.stop?.(); } catch {} try { node.disconnect?.(); } catch {} } this.stopActiveSounds(); return false; }
   }
 
   playFlick() {
@@ -291,7 +305,7 @@ export class SoundEffects {
     const context = this.context;
     this.releaseContext(context);
     try {
-      context?.close?.();
+      Promise.resolve(context?.close?.()).catch(() => {});
     } catch {
       // 終了処理の失敗は無視する。
     }

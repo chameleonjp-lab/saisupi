@@ -1,4 +1,5 @@
 export default {
+  "保存結果を確認できません。元のデータは保持しています。": "Kaydedilen sonuç doğrulanamadı. Orijinal veriler korunuyor.",
   "10個すべてをそろえた時間がスコアになります。": "10 hedefin tamamını eşleştirdiğiniz süre skorunuz olur.",
   "10個の目をそろえるタイムアタックです。": "10 zar değerini eşleştirdiğiniz bir zamana karşı yarış.",
   "10個を早くそろえる": "10 hedefi hızla eşleştir",

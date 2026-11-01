@@ -42,6 +42,7 @@ test('既存RPCでプレイ開始、スコア登録、上位30件を取得する
         return response([{
           accepted: true,
           result_display_name: 'テスト',
+          result_normalized_name: 'テスト',result_first_score:1234,
           result_best_score: 1234,
           result_play_count: 2,
           is_first_play: false,
@@ -130,7 +131,7 @@ test('lost acknowledgement retries the exact receipt and never calls legacy subm
   calls.push({url,body:JSON.parse(options.body)});
   assert.ok(url.endsWith('/submit_score_once_shared_v1'));
   if(++attempts===1)throw Error('response lost');
-  return response([{accepted:true,result_display_name:'開始名',result_best_score:1234,result_play_count:1,is_first_play:true,is_new_best:true,was_duplicate:true}]);
+  return response([{accepted:true,result_display_name:'開始名',result_normalized_name:'開始名',result_first_score:1234,result_best_score:1234,result_play_count:1,is_first_play:true,is_new_best:true,was_duplicate:true}]);
  }});
  const result=Object.freeze({displayName:'開始名',score:1234,submissionId:'00000000-0000-4000-8000-000000000001'});
  await assert.rejects(client.submitScore(result));await client.submitScore(result);
@@ -143,7 +144,7 @@ test('malformed ACK does not consume the receipt and retry uses its unchanged pa
   if(url.includes('/games?'))return response([{game_slug:'saisupi',is_active:true,score_order:'asc'}]);
   calls.push(JSON.parse(options.body));
   if(++attempts===1)return response([{was_duplicate:false}]);
-  return response([{accepted:true,result_display_name:'元名',result_best_score:1234,result_play_count:1,is_first_play:true,is_new_best:true,was_duplicate:true}]);
+  return response([{accepted:true,result_display_name:'元名',result_normalized_name:'元名',result_first_score:1234,result_best_score:1234,result_play_count:1,is_first_play:true,is_new_best:true,was_duplicate:true}]);
  }});
  const frozen={displayName:'元名',score:1234,submissionId:'00000000-0000-4000-8000-000000000042',clientVersion:'original-client'};
  await assert.rejects(client.submitScore(frozen),error=>error.code==='invalid-response');

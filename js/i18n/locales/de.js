@@ -1,4 +1,5 @@
 export default {
+  "保存結果を確認できません。元のデータは保持しています。": "Das gespeicherte Ergebnis konnte nicht geprüft werden. Die Originaldaten bleiben erhalten.",
   "10個すべてをそろえた時間がスコアになります。": "Dein Ergebnis ist die Zeit, die du für alle 10 Ziele brauchst.",
   "10個の目をそろえるタイムアタックです。": "Ein Zeitrennen, bei dem du 10 Zielwerte treffen musst.",
   "10個を早くそろえる": "Erreiche alle 10 Ziele möglichst schnell",

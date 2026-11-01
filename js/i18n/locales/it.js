@@ -1,4 +1,5 @@
 export default {
+  "保存結果を確認できません。元のデータは保持しています。": "Impossibile verificare il risultato salvato. I dati originali sono conservati.",
   "10個すべてをそろえた時間がスコアになります。": "Il punteggio è il tempo impiegato per completare tutti e 10 gli obiettivi.",
   "10個の目をそろえるタイムアタックです。": "Una sfida a tempo per riprodurre 10 valori obiettivo.",
   "10個を早くそろえる": "Completa rapidamente tutti e 10 gli obiettivi",

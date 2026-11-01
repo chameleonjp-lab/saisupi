@@ -87,6 +87,8 @@ function parseSubmitResponse(data, expected) {
   if (
     row.accepted !== true
     || row.result_display_name !== expected.displayName
+    || row.result_normalized_name !== expected.displayName
+    || !Number.isSafeInteger(row.result_first_score)
     || !Number.isSafeInteger(row.result_best_score)
     || row.result_best_score < 0
     || row.result_best_score > MAX_SCORE

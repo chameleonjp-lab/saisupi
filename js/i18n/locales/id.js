@@ -1,4 +1,5 @@
 export default {
+  "保存結果を確認できません。元のデータは保持しています。": "Hasil tersimpan tidak dapat diverifikasi. Data asli tetap disimpan.",
   "10個すべてをそろえた時間がスコアになります。": "Waktu untuk mencocokkan semua 10 target menjadi skor Anda.",
   "10個の目をそろえるタイムアタックです。": "Cocokkan 10 angka dalam tantangan waktu.",
   "10個を早くそろえる": "Cocokkan 10 target secepatnya",

@@ -1,4 +1,5 @@
 export default {
+  "保存結果を確認できません。元のデータは保持しています。": "Không thể xác minh kết quả đã lưu. Dữ liệu gốc được giữ lại.",
   "10個すべてをそろえた時間がスコアになります。": "Thời gian hoàn thành cả 10 mục tiêu là điểm của bạn.",
   "10個の目をそろえるタイムアタックです。": "Thử thách tính giờ: khớp 10 mặt xúc xắc.",
   "10個を早くそろえる": "Khớp nhanh cả 10 mục tiêu",

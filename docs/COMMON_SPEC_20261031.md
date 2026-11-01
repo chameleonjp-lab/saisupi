@@ -94,3 +94,25 @@ GitHub Pages Source は `GitHub Actions`（workflow）をAPIで確認。
 `npm ci && npm test && npm run check:syntax`、`npx playwright install --with-deps chromium webkit`、`npm run test:browser`、`PW_BROWSER=webkit npm run test:browser`、`npm run test:browser:real`、`PW_BROWSER=webkit npm run test:browser:real`。実データを書かないfixtures/ローカル配信のみ。
 
 不正/欠落したスコア応答でも送信UUIDを消費せず、同じ名前・点数・clientVersion・UUIDで再試行できる回帰テストを追加した。エラーは結果画面と未送信一覧に保持し、成功したとみなさない。
+
+## 2026-11-02 JST 後続検証（旧記録とは別時点）
+
+基準 PR15 head `264c22f12ae5a092b0681531fb98255ce6664f58`、base `aaaf8a9d48021eb202caae01105b8a028677db23`。既存記録は上記へ残す。この追記は過去の確認を現在の成功へ読み替えないための最新差分である。
+
+- 05:06 JST に公開ホーム `https://chameleonjp-lab.github.io/saisupi/` を読取り確認。ゲーム開始・本番スコア送信なし。公開中の旧画面と本 PR の変更は別物。登録情報は active / shared / asc / scale100 / decimals2 / best、詳細リンクは `https://chameleonjp-lab.github.io/chameleonjp_lab/ranking.html?game=saisupi`。
+- 7×7・固定10目標・登り完了後の目標生成・完全露出から計測・10目標完了時に確定・`floor(elapsedMs / 10)` の秒数スコア（小さいほど上位）、タッチ180ms/PC280msを変更していない。ゲーム core 8 ファイルの基準版との全バイト一致を独立レビューで確認。最新共通仕様の任意名前・ホーム音量設定は旧受入仕様より優先するが、ゲームルールを変更しない。
+- 保存後の読み戻しを必須化。quota / 黙った保存失敗時は公開スコア RPC より前に停止し、画面の結果と同 UUID を保持する。保存回復時に再保存し、成功した場合だけ警告解除する。別 UUID の失敗結果を複数保持し、受理済みは payload を残した tombstone で再送を防ぐ。同 UUID の異なる名前・版・結果や ACK 中の保存変更は衝突として元データを保持する。
+- 壊れた個別結果は健康な兄弟と分ける。旧配列全体が壊れ、含まれる UUID を検証できない場合は一覧の健康な個別結果を表示するが、曖昧な送信・新規保存は保留する。消去・上書きによる修復はしない。未確認の保存情報を隠さず15言語の警告を追加（計109キー）。正常終了・リタイア双方の復元値を検査し、矛盾する回数・タイムを確認済み結果にしない。
+- `record_game_play` は開始名ありの単回試行のまま。不確実な開始通信を自動再送しない。ゲスト開始を勝手に新しい匿名統計へ送らない。公開スコア登録とは別の処理である。
+- `submit_score_once_shared_v1` の9列応答（accepted、正規化名、表示名、初回/ベスト、回数、初回/更新/重複の boolean）を検査する。応答に UUID / 今回スコアの echo はないため、それをサーバー照合済みと主張しない。DB 提案は実験場 PR43、固定 `b06135ee60006b2ca2c9d177e2497077bcb5fb48` の SQL。05:07 JST の読取確認では新 RPC はまだ存在しない。DB 適用なし・旧 RPC fallback なし。本番ランキング動作成功ではない。
+- 音声ノードの例外・初期化途中の gain/context を後片付けし、音失敗がゲームを止めないよう補修。初回 on / 保存済み off・0、interrupted / 復帰の方針を維持。実音・iPhone Safari 実機は未確認。
+- 独立レビューの具体的 RED（音初期化リーク、リタイア復元の架空達成数）を修正。固定 point2 の独立再検証で指摘解消、開始統計単回/旧 ACK が新 UI を変更しない境界を含む4件成功。75 Node 検査・64 JS 構文検査・ブラウザ検査スクリプト構文検査成功。CI での Chromium / WebKit UI fixture と実3Dの結果は、今回の確定 head に対して別途確認する。古い61検査や以前のブラウザ成功を今回の証拠にしない。
+- 配信用ステージの再帰的強制削除を廃止。新しい空の `_site` へ許可対象のみ構築し、既存ステージがある場合は失敗して旧成果物を保全する。PR で本番 artifact / deploy を実行しない条件は維持。
+
+### 今回も残す確認事項と再開条件
+
+上記の過去「Pages Source を API で確認」という記録は今回の再確認ではない。管理 Source の取得手段が現在未対応のため、現在設定は未確認（権限拒否と断定しない）。本人が Source = GitHub Actions、公開環境・必要権限を確認するまで設定確認済みにしない。
+
+本人識別方式の判断待ち、同名別人・改名引継ぎ・厳密な本人単位30名、適合 DB の適用と読戻し、D02〜D08 の既存未確定事項、母語話者による自然さ、実音、iPhone17 Pro Safari 実機、本人マージ後の exact commit 公開を未完了として保持する。DB と本人識別の解決前に本 PR を単に「マージするだけ」とはしない。必要操作のみ保留し、実装・検証は独立して進める。
+
+切戻しは同 PR 前の固定 head と通常の revert PR を使い、保存名・音量・言語・旧スコア・受理済み/未送信 raw を消さない。DB・公開設定・実験場登録情報への書込みは今回行っていない。

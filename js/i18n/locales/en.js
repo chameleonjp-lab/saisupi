@@ -1,4 +1,5 @@
 export default {
+  "保存結果を確認できません。元のデータは保持しています。": "Saved result could not be verified. Original data is kept.",
   "10個すべてをそろえた時間がスコアになります。": "Your score is the time taken to match all 10 targets.",
   "10個の目をそろえるタイムアタックです。": "A time trial to match 10 target values.",
   "10個を早くそろえる": "Match all 10 targets quickly",

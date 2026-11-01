@@ -1,4 +1,5 @@
-import {createSubmissionId, validSubmissionId, queueResult, readOutbox, acknowledgeResult} from './saisupi-outbox.js';
+import {validSnapshot,saveSnapshot,submitDurableResult} from './saisupi-result.js';
+import {createSubmissionId, validSubmissionId, queueResult, readOutbox, hasUnverifiedEntries, acknowledgeResult} from './saisupi-outbox.js';
 import { t, formatTime, initLanguage, getLanguage, setLanguage, LANGUAGES, CATALOGS, bindStaticTranslations } from './i18n/index.js';
 import {
   CHAMELEONJP_LAB_URL,
@@ -277,6 +278,8 @@ async function syncResultRanking(snapshot, token) {
   ) return;
 
   const state = rankingState;
+  try {saveSnapshot(preferenceStorage,RESULT_KEY,{run:state.run,result:snapshot});document.querySelector('#result-save-warning').hidden=true;}
+  catch {document.querySelector('#result-save-warning').hidden=false;}
   const promise = (async () => {
     if (!rankingClient) {
       setResultRecordMessage(t('オンラインランキングは準備中です'));
@@ -295,14 +298,9 @@ async function syncResultRanking(snapshot, token) {
       state.submissionAttempted = true;
       resultRankingStatus.textContent = t('スコアを登録しています…');
       try {
-        state.submission = await rankingClient.submitScore({
-          displayName: state.run.displayName,
-          submissionId: state.run.submissionId,
-          clientVersion: state.run.clientVersion,
-          score: snapshot.scoreCentiseconds
-        });
+        state.submission = await submitDurableResult(preferenceStorage,state.run,snapshot,rankingClient);
         state.submissionError = null;
-        try { acknowledgeResult(preferenceStorage,state.run.submissionId); refreshPendingResults(); } catch { /* Keep receipt; a later retry is idempotent. */ }
+        refreshPendingResults();
         if (token !== roundToken) return;
         resultBestScore.textContent = formatRankingScore(state.submission.bestScore);
         setResultRecordMessage(
@@ -351,7 +349,7 @@ function showResult(snapshot, token) {
   try {
     queueResult(preferenceStorage,rankingState.run,latestResult);
     if(!preferenceStorage)throw Error('storage unavailable');
-    preferenceStorage.setItem(RESULT_KEY,JSON.stringify({run:rankingState.run,result:latestResult}));
+    saveSnapshot(preferenceStorage,RESULT_KEY,{run:rankingState.run,result:latestResult});
     document.querySelector('#last-result-button').hidden = false;
   } catch { document.querySelector('#result-save-warning').hidden = false; }
   game?.setActive(false);
@@ -763,7 +761,7 @@ function readSavedResult() {
   try {
     const saved=JSON.parse(preferenceStorage?.getItem(RESULT_KEY)??'null');
     if(saved?.run && saved.run.clientVersion===undefined)saved.run.clientVersion='saisupi-web-1';
-    return saved && typeof saved.run?.displayName==='string' && (validSubmissionId(saved.run.submissionId)||saved.run.submissionId===null) && (saved.result?.retired===true || Number.isSafeInteger(saved.result?.scoreCentiseconds)) ? saved : null;
+    return validSnapshot(saved) ? saved : null;
   } catch { return null; }
 }
 lastResultButton.hidden=!readSavedResult();
@@ -779,8 +777,9 @@ soundVolume.addEventListener('input',()=>{soundEffects.setVolume(Number(soundVol
 
 function refreshPendingResults() {
  const host=document.querySelector('#pending-results');if(!host)return;host.replaceChildren();
- let entries=[];try {entries=readOutbox(preferenceStorage);}catch{return;}
- for(const saved of entries){const button=document.createElement('button');button.type='button';button.className='secondary-button';button.textContent=`${t('送信待ち')} · ${formatTime(saved.result.scoreCentiseconds)}`;
+ let entries=[],unverified=false;try {entries=readOutbox(preferenceStorage);unverified=hasUnverifiedEntries(preferenceStorage);}catch{unverified=true;}
+ for(const saved of entries){if(!validSnapshot(saved)){unverified=true;continue;}const button=document.createElement('button');button.type='button';button.className='secondary-button';button.textContent=`${t('送信待ち')} · ${formatTime(saved.result.scoreCentiseconds)}`;
   button.addEventListener('click',()=>{roundToken+=1;currentPlayerName=saved.run.displayName;rankingState=createRankingState();rankingState.run=Object.freeze(saved.run);showResult(Object.freeze(saved.result),roundToken);});host.append(button);}
+ if(unverified){const warning=document.createElement('p');warning.textContent=t('保存結果を確認できません。元のデータは保持しています。');host.append(warning);}
 }
 refreshPendingResults();

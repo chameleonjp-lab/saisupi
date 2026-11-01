@@ -41,3 +41,13 @@ test('volume zero is preserved and does not initialize audio',async()=>{
 });
 
 test('disposing before audio initialization and twice is safe',()=>{const sound=new SoundEffects({storage:null,contextFactory:()=>null});assert.doesNotThrow(()=>sound.dispose());assert.doesNotThrow(()=>sound.dispose());});
+
+test('one node disconnect error does not block sibling cleanup or game operations',()=>{
+ let disconnected=0;const sound=new SoundEffects({storage:null});
+ sound.trackSound({stop(){},disconnect(){throw Error('node failed')}},[{disconnect(){disconnected++}}]);
+ assert.doesNotThrow(()=>sound.stopActiveSounds());assert.equal(disconnected,1);assert.equal(sound.activeSounds.size,0);
+});
+test('unavailable oscillator does not throw from an in-game sound cue',()=>{
+ const sound=new SoundEffects({storage:null});sound.context={state:'running',currentTime:1,createOscillator(){throw Error('device')}};
+ assert.doesNotThrow(()=>sound.playClear());
+});

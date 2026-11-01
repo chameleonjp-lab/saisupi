@@ -28,9 +28,9 @@ await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const type = process.env.PW_BROWSER === 'webkit' ? webkit : chromium;
 const browser = await type.launch();
 const fixture = `export class WebGLSaisupi {
- constructor(canvas,callbacks){this.callbacks=callbacks;this.snapshot={phase:'RUNNING',scoreCentiseconds:1234,completedTargetCount:0,targetCount:10,targetTimings:[]};window.fixture=this;}
+ constructor(canvas,callbacks){this.callbacks=callbacks;this.snapshot={phase:'RUNNING',elapsedMs:12340,scoreCentiseconds:1234,completedTargetCount:0,targetCount:10,targetTimings:[]};window.fixture=this;}
  setActive(value){this.active=value;}getSnapshot(){return this.snapshot;}dispose(){}resize(){}reset(){this.snapshot={...this.snapshot,scoreCentiseconds:1234,completedTargetCount:0};}setSize(){}
- finish(){this.snapshot={...this.snapshot,phase:'FINISHED',completedTargetCount:10,targetTimings:Array.from({length:10},(_,i)=>({index:i+1,completed:true,scoreCentiseconds:100*(i+1)}))};this.callbacks.onFinished({snapshot:this.snapshot});}
+ finish(){this.snapshot={...this.snapshot,elapsedMs:this.snapshot.scoreCentiseconds*10,phase:'FINISHED',completedTargetCount:10,targetTimings:Array.from({length:10},(_,i)=>({index:i+1,completed:true,scoreCentiseconds:i===9?this.snapshot.scoreCentiseconds:Math.floor(this.snapshot.scoreCentiseconds*(i+1)/10)}))};this.callbacks.onFinished({snapshot:this.snapshot});}
 }`;
 try {
   const context = await browser.newContext({
@@ -94,6 +94,7 @@ try {
         {
           accepted: true,
           result_display_name: data.p_display_name,
+          result_normalized_name: data.p_display_name,result_first_score:data.p_score,
           result_best_score: data.p_score,
           result_play_count: 1,
           is_first_play: true,
@@ -195,7 +196,8 @@ try {
   assert.equal(receipts.size, 2);
   assert.ok([...receipts.values()].some(value=>value.p_display_name==='開始名'&&value.p_score===1234));
   assert.ok([...receipts.values()].some(value=>value.p_display_name==='別の名前'&&value.p_score===2345));
-  assert.equal(await page.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('saisupi.pending-submissions.v1:')).length),1);
+  assert.equal(await page.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('saisupi.pending-submissions.v1:') && !JSON.parse(localStorage.getItem(key)).acknowledged).length),1);
+  assert.equal(await page.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('saisupi.pending-submissions.v1:') && JSON.parse(localStorage.getItem(key)).acknowledged).length),1);
   const sent = writes.length;
   await page.evaluate(() => {
     document.querySelector('#language-select').value = 'en';
@@ -217,7 +219,7 @@ try {
   assert.ok(reads.every((x) => x.p_limit === 30));
   await page.click('#result-home-button');
   await page.click('#sound-toggle');
-  await page.fill('#sound-volume', '0');
+  await page.locator('#sound-volume').evaluate(el=>{el.value='0';el.dispatchEvent(new Event('input',{bubbles:true}));});
   await page.reload();
   assert.equal(await page.getAttribute('#sound-toggle', 'aria-pressed'), 'false');
   assert.equal(await page.inputValue('#sound-volume'), '0');
@@ -233,6 +235,23 @@ try {
       true
     );
   }
+  await page.setViewportSize({width:402,height:874});
+  await page.selectOption('#language-select','ja');
+  await page.fill('#player-name-input','保存試験');await page.click('#start-button');
+  await page.waitForFunction(()=>window.fixture?.active);
+  const scoreCount=writes.filter(x=>x.rpc==='submit_score_once_shared_v1').length;
+  await page.evaluate(()=>{window.saveSetItem=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k.startsWith('saisupi.pending'))throw Error('quota');return window.saveSetItem.call(this,k,v)};window.fixture.finish()});
+  await page.waitForSelector('#result-ranking-retry:not([hidden])');
+  assert.equal(writes.filter(x=>x.rpc==='submit_score_once_shared_v1').length,scoreCount);
+  assert.equal(await page.locator('#result-save-warning').isVisible(),true);
+  await page.evaluate(()=>{Storage.prototype.setItem=window.saveSetItem});
+  await page.click('#result-ranking-retry');
+  await page.waitForFunction(()=>document.querySelector('#result-record-message').textContent.includes('登録しました'));
+  assert.equal(await page.locator('#result-save-warning').isVisible(),false);
+  assert.equal(writes.filter(x=>x.rpc==='submit_score_once_shared_v1').length,scoreCount+1);
+  await page.reload();await page.click('#last-result-button');
+  await page.waitForFunction(()=>document.querySelectorAll('#result-ranking-list .ranking-name').length===30);
+  assert.equal(writes.filter(x=>x.rpc==='submit_score_once_shared_v1').length,scoreCount+1);
   assert.deepEqual(errors, []);
   console.log(
     `${type.name()}: all15 UI/share fixtures, anonymous/name snapshot/lost ACK/reload, top30 ties, safe text, off/0 and language persistence passed; 3D renderer simulated`
