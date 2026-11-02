@@ -5,8 +5,9 @@ import {resolve} from 'node:path';
 function measure(element){
  const r=element.getBoundingClientRect(),s=getComputedStyle(element);let opacity=1,visible=true;
  for(let n=element;n;n=n.parentElement){const c=getComputedStyle(n);opacity*=Number(c.opacity);if(n.hidden||c.display==='none'||['hidden','collapse'].includes(c.visibility))visible=false;}
+ const scrollAncestors=[];for(let n=element.parentElement;n;n=n.parentElement){const c=getComputedStyle(n);scrollAncestors.push({tag:n.tagName,id:n.id,scrollTop:n.scrollTop,scrollLeft:n.scrollLeft,overflow:c.overflow,transition:c.transition,animation:c.animation});}
  const hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
- return {width:r.width,height:r.height,left:r.left,right:r.right,top:r.top,bottom:r.bottom,vw:innerWidth,vh:innerHeight,hit:hit===element||element.contains(hit),opacity,visible,color:s.color,background:s.backgroundColor,disabled:element.disabled,label:element.textContent.trim(),clipped:element.scrollWidth>element.clientWidth+1||element.scrollHeight>element.clientHeight+1};
+ return {width:r.width,height:r.height,left:r.left,right:r.right,top:r.top,bottom:r.bottom,vw:innerWidth,vh:innerHeight,scrollX,scrollY,scrollAncestors,transition:s.transition,animation:s.animation,hit:hit===element||element.contains(hit),hitTarget:hit?{tag:hit.tagName,id:hit.id,className:String(hit.className)}:null,opacity,visible,color:s.color,background:s.backgroundColor,disabled:element.disabled,label:element.textContent.trim(),clipped:element.scrollWidth>element.clientWidth+1||element.scrollHeight>element.clientHeight+1};
 }
 export async function checkAncestorDetection(page){
  const button=page.locator('#home-share-button');
@@ -21,7 +22,8 @@ export async function checkShareTarget(page,selector,{language,screen,engine,sou
  const directory=resolve(new URL('../test-artifacts/share/',import.meta.url).pathname);await mkdir(directory,{recursive:true});
  for(const size of sizes){
   await page.setViewportSize(size);const button=page.locator(selector);await button.scrollIntoViewIfNeeded();const m=await button.evaluate(measure);
-  assert.equal(await button.isVisible(),true);assert.equal(m.visible,true);assert.equal(m.opacity,1);assert.equal(m.disabled,false);assert.equal(m.hit,true);
+  await page.screenshot({path:resolve(directory,`${engine}-${source}-${language}-${screen}-${size.width}x${size.height}-diagnostic.png`)});
+  assert.equal(await button.isVisible(),true);assert.equal(m.visible,true);assert.equal(m.opacity,1);assert.equal(m.disabled,false);assert.equal(m.hit,true,`center hit ${language}/${screen} ${JSON.stringify(m)}`);
   assert.ok(m.width>=44&&m.height>=44,`44px ${JSON.stringify(m)}`);assert.ok(m.left>=0&&m.right<=m.vw+1&&m.top>=0&&m.bottom<=m.vh+1,'viewport reachable');assert.equal(m.clipped,false,'complete label fits');
   assert.equal(m.background,'rgb(0, 0, 0)');assert.equal(m.color,'rgb(255, 255, 255)');assert.ok(m.label);if(language==='ja')assert.equal(m.label,'Xでシェア');
   await button.focus();assert.equal(await button.evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(0, 0, 0)');
