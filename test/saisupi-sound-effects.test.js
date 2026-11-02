@@ -51,3 +51,86 @@ test('unavailable oscillator does not throw from an in-game sound cue',()=>{
  const sound=new SoundEffects({storage:null});sound.context={state:'running',currentTime:1,createOscillator(){throw Error('device')}};
  assert.doesNotThrow(()=>sound.playClear());
 });
+
+function retryHarness() {
+  const contexts = [];
+  const values = new Map();
+  function makeContext() {
+    let settle;
+    const context = {
+      state: 'suspended', currentTime: 0, destination: {}, resumeCalls: 0, suspendCalls: 0, closeCalls: 0,
+      createGain: () => ({ gain: { setValueAtTime() {} }, connect() {}, disconnect() {} }),
+      addEventListener() {}, removeEventListener() {},
+      resume() { this.resumeCalls++; if (this.resumeCalls === 1) return new Promise(resolve => { settle = resolve; }); this.state = 'running'; return Promise.resolve(); },
+      suspend() { this.suspendCalls++; this.state = 'suspended'; return Promise.resolve(); },
+      close() { this.closeCalls++; this.state = 'closed'; return Promise.resolve(); },
+      settle() { settle(); }
+    };
+    contexts.push(context);
+    return context;
+  }
+  const sound = new SoundEffects({ storage: { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) }, contextFactory: makeContext });
+  return { sound, contexts, values };
+}
+
+test('next gesture retries permanently pending resume without automatic replay', async () => {
+  const { sound, contexts } = retryHarness();
+  const old = sound.unlock();
+  void sound.unlock();
+  const context = contexts[0];
+  assert.equal(context.resumeCalls, 1);
+  assert.equal(sound.playClear(), false);
+  await new Promise(setImmediate);
+  const next = sound.unlock();
+  assert.equal(context.resumeCalls, 2);
+  assert.equal(await next, true);
+  context.settle();
+  await old;
+  assert.equal(sound.activeSounds.size, 0);
+  assert.equal(contexts.length, 1);
+});
+
+for (const state of ['off', 'zero', 'hidden']) {
+  test(`pending recovery respects ${state} and remains retryable`, { timeout: 1000 }, async () => {
+    const { sound, contexts, values } = retryHarness();
+    const old = sound.unlock();
+    const context = contexts[0];
+    await new Promise(setImmediate);
+    if (state === 'off') await sound.setEnabled(false);
+    if (state === 'zero') sound.setVolume(0);
+    if (state === 'hidden') sound.handleVisibility(true);
+    assert.equal(await sound.unlock(), false);
+    assert.equal(context.resumeCalls, 1);
+    assert.equal(sound.playClear(), false);
+    context.settle();
+    assert.equal(await old, false);
+    if (state === 'off') { assert.equal(values.get(SOUND_PREFERENCE_KEY), 'false'); await sound.setEnabled(true); }
+    if (state === 'zero') { assert.equal(values.get('saisupi:sound-volume:v1'), '0'); sound.setVolume(0.3); }
+    sound.handleVisibility(false);
+    assert.equal(await sound.unlock(), true);
+    assert.equal(context.resumeCalls, 2);
+    assert.equal(sound.activeSounds.size, 0);
+  });
+}
+
+for (const release of ['closed', 'dispose']) {
+  test(`late resume after ${release} never targets the replacement context`, async () => {
+    const { sound, contexts } = retryHarness();
+    const old = sound.unlock();
+    const first = contexts[0];
+    if (release === 'dispose') sound.dispose(); else first.state = 'closed';
+    await new Promise(setImmediate);
+    void sound.unlock();
+    assert.equal(contexts.length, 2);
+    const replacement = contexts[1];
+    await new Promise(setImmediate);
+    assert.equal(await sound.unlock(), true);
+    sound.hidden = true;
+    first.settle();
+    assert.equal(await old, false);
+    assert.equal(replacement.suspendCalls, 0);
+    replacement.settle();
+    await Promise.resolve();
+    assert.equal(sound.activeSounds.size, 0);
+  });
+}

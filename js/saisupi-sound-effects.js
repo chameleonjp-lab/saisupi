@@ -126,11 +126,12 @@ export class SoundEffects {
     if (this.unlockPromise) return this.unlockPromise;
     const promise = this.unlockAudioContext();
     this.unlockPromise = promise;
-    try {
-      return await promise;
-    } finally {
+    // Share only synchronous calls from this gesture, not an indefinitely
+    // pending browser resume. Later gestures must still invoke resume directly.
+    Promise.resolve().then(() => {
       if (this.unlockPromise === promise) this.unlockPromise = null;
-    }
+    });
+    return promise;
   }
 
   async unlockAudioContext() {
@@ -139,6 +140,7 @@ export class SoundEffects {
     if (!context) return false;
     try {
       if (context.state === 'suspended' || context.state === 'interrupted') await context.resume();
+      if (this.context !== context) return false;
       if (!this.enabled || this.volume === 0 || this.hidden) {
         await this.suspend();
         return false;
