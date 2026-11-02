@@ -137,6 +137,12 @@ try {
   assert.ok(await page.locator('#game-canvas').evaluate((c) => c.width > 0 && c.height > 0));
   await mkdir(resolve(root,'test-artifacts/share'),{recursive:true});
   await sceneEvidence('game');
+  await page.setViewportSize({width:1200,height:800});
+  await page.evaluate(()=>{const selector=document.querySelector('#language-select');selector.value='ja';selector.dispatchEvent(new Event('change'));});
+  await sceneEvidence('thumbnail-source');
+  await page.locator('#game-canvas').screenshot({path:resolve(root,`test-artifacts/share/${type.name()}-thumbnail-canvas.png`)});
+  await page.setViewportSize({width:402,height:874});
+  await page.evaluate(()=>{const selector=document.querySelector('#language-select');selector.value='fr';selector.dispatchEvent(new Event('change'));});
   await page.click('#retire-button');
   await page.waitForSelector('#result-screen:not([hidden])');
   assert.equal(await page.getAttribute('#app', 'data-result-type'), 'retired');
