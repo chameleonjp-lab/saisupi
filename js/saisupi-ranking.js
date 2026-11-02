@@ -89,11 +89,13 @@ function parseSubmitResponse(data, expected) {
     || row.result_display_name !== expected.displayName
     || row.result_normalized_name !== expected.displayName
     || !Number.isSafeInteger(row.result_first_score)
+    || row.result_first_score < -2147483648 || row.result_first_score > 2147483647
     || !Number.isSafeInteger(row.result_best_score)
     || row.result_best_score < 0
     || row.result_best_score > MAX_SCORE
+    || row.result_best_score > expected.score
     || !Number.isSafeInteger(row.result_play_count)
-    || row.result_play_count < 1
+    || row.result_play_count < 1 || row.result_play_count > 2147483647
     || typeof row.is_first_play !== 'boolean'
     || typeof row.is_new_best !== 'boolean'
     || typeof row.was_duplicate !== 'boolean'
@@ -281,3 +283,4 @@ export {
   parseStartResponse,
   parseSubmitResponse
 };
+

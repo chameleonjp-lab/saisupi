@@ -116,3 +116,7 @@ GitHub Pages Source は `GitHub Actions`（workflow）をAPIで確認。
 本人識別方式の判断待ち、同名別人・改名引継ぎ・厳密な本人単位30名、適合 DB の適用と読戻し、D02〜D08 の既存未確定事項、母語話者による自然さ、実音、iPhone17 Pro Safari 実機、本人マージ後の exact commit 公開を未完了として保持する。DB と本人識別の解決前に本 PR を単に「マージするだけ」とはしない。必要操作のみ保留し、実装・検証は独立して進める。
 
 切戻しは同 PR 前の固定 head と通常の revert PR を使い、保存名・音量・言語・旧スコア・受理済み/未送信 raw を消さない。DB・公開設定・実験場登録情報への書込みは今回行っていない。
+
+
+## 2026-11-02 09:46 JST normal ACK follow-up
+Baseline PR15 `d3e046063d6e5a0f7d835ebae2af0bef76416f6a`. PostgreSQL int4 first-score/play-count bounds and ascending best <= this submitted time are now checked before durable acknowledgement. Existing first-score zero/signed history and valid faster historical best are preserved. The production client-to-durable-outbox regression reproduced premature acknowledgement, then verified the same UUID/payload remains retryable until valid acknowledgement. Local 76 tests and syntax64 pass; Pages packaging passes. Independent review and new-head Chromium/WebKit CI are pending; device/identity/production acceptance limitations remain unchanged. No game timing, rules, DB or production scores changed.
