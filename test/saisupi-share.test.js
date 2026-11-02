@@ -8,7 +8,7 @@ import {
   shareResult
 } from '../js/saisupi-share.js';
 
-test('ホーム共有文は指定された3行をそのまま本文にする', () => {
+test('ホーム共有文は紹介とURLを保ち正式タグを付ける', () => {
   const content = createHomeShareContent({
     pageUrl: 'https://chameleonjp-lab.github.io/saisupi/?from=test#home'
   });
@@ -16,13 +16,14 @@ test('ホーム共有文は指定された3行をそのまま本文にする', (
   assert.equal(content.text, [
     'サイスピ',
     'サイコロを転がし、10個の目を揃えるタイムアタックゲーム',
-    'https://chameleonjp-lab.github.io/saisupi/'
+    'https://chameleonjp-lab.github.io/saisupi/',
+    '#サイスピ #ゲーム制作'
   ].join('\n'));
-  assert.doesNotMatch(content.text, /URL:|#サイスピ/u);
+  assert.doesNotMatch(content.text, /URL:/u);
   assert.equal(content.copyText, content.text);
 });
 
-test('結果共有文はスコアとテキストURLの2行にする', () => {
+test('結果共有文は確定スコアとテキストURLに正式タグを付ける', () => {
   const content = createResultShareContent({
     pageUrl: 'https://chameleonjp-lab.github.io/saisupi/',
     result: {
@@ -31,9 +32,10 @@ test('結果共有文はスコアとテキストURLの2行にする', () => {
   });
   assert.equal(content.text, [
     'サイスピを 104.18秒 でクリア',
-    'https://chameleonjp-lab.github.io/saisupi/'
+    'https://chameleonjp-lab.github.io/saisupi/',
+    '#サイスピ #ゲーム制作'
   ].join('\n'));
-  assert.doesNotMatch(content.text, /URL:|#サイスピ/u);
+  assert.doesNotMatch(content.text, /URL:/u);
 });
 
 test('Xへ本文と改行・記号を正確に渡し、投稿完了とは扱わない', async () => {

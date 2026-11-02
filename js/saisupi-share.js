@@ -31,7 +31,8 @@ export function createHomeShareContent({ pageUrl }) {
   const text = [
     t('サイスピ'),
     t('サイコロを転がし、10個の目を揃えるタイムアタックゲーム'),
-    url
+    url,
+    '#サイスピ #ゲーム制作'
   ].join('\n');
 
   return Object.freeze({
@@ -55,7 +56,7 @@ export function createResultShareContent({
     && result.scoreCentiseconds >= 0
     ? [t('サイスピを {time} でクリア',{time:formatScore(requireScore(result.scoreCentiseconds))}), url]
     : [t('サイスピをプレイしました'), url];
-  const text = lines.join('\n');
+  const text = [...lines, '#サイスピ #ゲーム制作'].join('\n');
 
   return Object.freeze({
     title: t('サイスピ'),

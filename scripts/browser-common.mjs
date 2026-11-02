@@ -4,6 +4,8 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { resolve, extname } from 'node:path';
 import { chromium, webkit } from 'playwright';
+import {isolateBrowserNetwork} from './browser-network-safety.mjs';
+import {checkAncestorDetection,checkShareTarget} from './share-visibility-check.mjs';
 import { LANGUAGES, CATALOGS } from '../js/i18n/index.js';
 const root = resolve(new URL('..', import.meta.url).pathname);
 const server = http.createServer(async (req, res) => {
@@ -37,8 +39,10 @@ try {
     viewport: { width: 402, height: 874 },
     isMobile: true,
     hasTouch: true,
-    locale: 'ja-JP'
+    locale: 'ja-JP',
+    serviceWorkers:'block'
   });
+  await isolateBrowserNetwork(context, `http://127.0.0.1:${server.address().port}`);
   await context.route('**/js/webgl-support.js', (r) =>
     r.fulfill({
       contentType: 'text/javascript',
@@ -120,11 +124,12 @@ try {
   await page.waitForFunction(
     () => document.querySelector('#language-select').options.length === 15
   );
+  await checkAncestorDetection(page);
   for (const [lang] of LANGUAGES) {
     await page.selectOption('#language-select', lang);
     assert.equal(await page.textContent('#start-button'), CATALOGS[lang]['ゲームを始める']);
     assert.equal(await page.textContent('#home-lab-link'), CATALOGS[lang]['ランキング']);
-    await page.click('#home-share-button');
+    await checkShareTarget(page,'#home-share-button',{language:lang,screen:'home',engine:type.name()});
     assert.ok(
       (await page.evaluate(() => new URL(window.shared.at(-1)).searchParams.get('text'))).includes(
         CATALOGS[lang]['サイコロを転がし、10個の目を揃えるタイムアタックゲーム']
@@ -153,7 +158,7 @@ try {
     );
     assert.equal(await page.locator('#result-ranking-list img').count(), 0);
     assert.equal(await page.locator('#result-ranking-list li strong').nth(1).textContent(), '1.');
-    await page.click('#result-share-button');
+    await checkShareTarget(page,'#result-share-button',{language:lang,screen:'result',engine:type.name()});
     assert.ok(
       (await page.evaluate(() => new URL(window.shared.at(-1)).searchParams.get('text'))).includes(
         'https://chameleonjp-lab.github.io/saisupi/'
