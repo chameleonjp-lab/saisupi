@@ -151,6 +151,23 @@ try {
     'retirement does not create score/telemetry writes'
   );
   assert.deepEqual(errors, []);
+  // Separate offline composition: approved actual scene pixels, never a new game state.
+  const thumbnailContext=await browser.newContext({viewport:{width:1200,height:630},serviceWorkers:'block'});
+  await thumbnailContext.route('**/*',route=>route.abort());
+  await thumbnailContext.routeWebSocket('**/*',socket=>socket.close());
+  const thumbnailPage=await thumbnailContext.newPage();
+  await thumbnailPage.setContent('<!doctype html><meta charset="utf-8"><style>html,body{margin:0;width:1200px;height:630px;overflow:hidden}</style>'+await readFile(resolve(root,'assets/saisupi-og-v3.svg'),'utf8'));
+  await thumbnailPage.evaluate(async()=>{
+    await document.fonts.ready;
+    await Promise.all([...document.querySelectorAll('svg image')].map(async element=>{
+      const source=element.href.baseVal;
+      if(!source.startsWith('data:image/png;base64,'))throw new Error('Thumbnail source must be embedded PNG');
+      const image=new Image();image.src=source;await image.decode();
+      if(!image.naturalWidth||!image.naturalHeight)throw new Error('Thumbnail source is empty');
+    }));
+  });
+  await thumbnailPage.screenshot({path:resolve(root,`test-artifacts/share/${type.name()}-thumbnail-composition.png`)});
+  await thumbnailContext.close();
   console.log(
     `${type.name()}: actual Three.js scene, anonymous start, directional movement, language without reset, retirement passed`
   );
