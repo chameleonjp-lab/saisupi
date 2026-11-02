@@ -47,6 +47,7 @@ try {
   const page=await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  page.on('console', message => { if (/WebGL|THREE\./i.test(message.text())) console.log('renderer console', message.type(), message.text()); });
   await page.route('https://cdn.jsdelivr.net/npm/three@0.185.1/**', async (route) => {
     const path = new URL(route.request().url()).pathname.split('/three@0.185.1/')[1];
     await route.fulfill({
@@ -87,6 +88,13 @@ try {
     [moved.playerRow, moved.playerColumn],
     [before.playerRow, before.playerColumn]
   );
+  await mkdir(resolve(root,'test-artifacts/share'),{recursive:true});
+  const sceneEvidence = async (label) => {
+    const state=await page.evaluate(()=>{const g=window.realGameForTest,c=document.querySelector('#game-canvas'),r=c.getBoundingClientRect(),s=getComputedStyle(c);return {renderActive:g.renderActive,isVisible:g.isVisible,contextLost:g.contextLost,disposed:g.disposed,frameId:g.frameId,renderInfo:g.renderer.info.render,glContextLost:g.renderer.getContext().isContextLost(),canvas:{width:c.width,height:c.height,rect:{x:r.x,y:r.y,width:r.width,height:r.height},display:s.display,visibility:s.visibility,opacity:s.opacity},snapshot:g.getSnapshot()};});
+    console.log('scene diagnostic',label,JSON.stringify(state));
+    await page.screenshot({path:resolve(root,`test-artifacts/share/${type.name()}-actual-${label}.png`)});
+  };
+  await sceneEvidence('before-language');
   await page.evaluate(() => {
     document.querySelector('#language-select').value = 'fr';
     document.querySelector('#language-select').dispatchEvent(new Event('change'));
@@ -99,7 +107,7 @@ try {
   assert.equal(writes.length, 0);
   assert.ok(await page.locator('#game-canvas').evaluate((c) => c.width > 0 && c.height > 0));
   await mkdir(resolve(root,'test-artifacts/share'),{recursive:true});
-  await page.screenshot({path:resolve(root,`test-artifacts/share/${type.name()}-actual-game.png`)});
+  await sceneEvidence('game');
   await page.click('#retire-button');
   await page.waitForSelector('#result-screen:not([hidden])');
   assert.equal(await page.getAttribute('#app', 'data-result-type'), 'retired');
