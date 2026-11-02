@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {isolateBrowserNetwork} from '../scripts/browser-network-safety.mjs';
+async function boundary(){let route,websocket;await isolateBrowserNetwork({async route(_,fn){route=fn;},async routeWebSocket(_,fn){websocket=fn;}},'http://127.0.0.1:4173');return {route,websocket};}
+function request(url,status=200,method='GET'){const calls=[];return {calls,request:()=>({url:()=>url,method:()=>method}),async abort(){calls.push('abort');},async fetch(options){calls.push(['fetch',options]);return {status:()=>status};},async fulfill(){calls.push('fulfill');}};}
+test('external HTTP and lookalike loopback host never reach a fetch',async()=>{const b=await boundary();assert.equal(typeof b.route,'function');for(const url of ['https://example.invalid/score','http://127.0.0.1.evil.test:4173/','http://127.0.0.1:9999/']){const r=request(url);await b.route(r);assert.deepEqual(r.calls,['abort']);}});
+test('local response is fetched without redirect following; redirect is rejected',async()=>{const b=await boundary();assert.equal(typeof b.route,'function');const ok=request('http://127.0.0.1:4173/js/main.js');await b.route(ok);assert.deepEqual(ok.calls,[['fetch',{maxRedirects:0}],'fulfill']);const redirect=request('http://127.0.0.1:4173/',302);await assert.rejects(()=>b.route(redirect),/redirect/);assert.deepEqual(redirect.calls,[['fetch',{maxRedirects:0}],'abort']);});
+test('WebSockets are closed without forwarding',async()=>{const b=await boundary();assert.equal(typeof b.websocket,'function');let closed=0;b.websocket({close(){closed++;}});assert.equal(closed,1);});
+
+test('same-origin writes cannot pass the static GET/HEAD boundary',async()=>{const b=await boundary();for(const method of ['POST','PUT','PATCH','DELETE','OPTIONS']){const r=request('http://127.0.0.1:4173/score',200,method);await b.route(r);assert.deepEqual(r.calls,['abort'],method);}const head=request('http://127.0.0.1:4173/index.html',200,'HEAD');await b.route(head);assert.deepEqual(head.calls,[['fetch',{maxRedirects:0}],'fulfill']);});

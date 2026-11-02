@@ -1,6 +1,8 @@
 // Real Three.js scene with exact pinned CDN modules served from dev dependencies.
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import {isolateBrowserNetwork} from './browser-network-safety.mjs';
+import {mkdir} from 'node:fs/promises';
 import { readFile } from 'node:fs/promises';
 import { resolve, extname } from 'node:path';
 import { chromium, webkit } from 'playwright';
@@ -33,13 +35,16 @@ const browser = await type.launch(
     : {}
 );
 try {
-  const page = await browser.newPage({
+  const context = await browser.newContext({
     viewport: { width: 402, height: 874 },
     isMobile: true,
     hasTouch: true,
     reducedMotion: 'reduce',
-    locale: 'en-US'
+    locale: 'en-US',
+    serviceWorkers:'block'
   });
+  await isolateBrowserNetwork(context,`http://127.0.0.1:${server.address().port}`);
+  const page=await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.route('https://cdn.jsdelivr.net/npm/three@0.185.1/**', async (route) => {
@@ -93,6 +98,8 @@ try {
   assert.equal(after.targetLayoutVersion, before.targetLayoutVersion);
   assert.equal(writes.length, 0);
   assert.ok(await page.locator('#game-canvas').evaluate((c) => c.width > 0 && c.height > 0));
+  await mkdir(resolve(root,'test-artifacts/share'),{recursive:true});
+  await page.screenshot({path:resolve(root,`test-artifacts/share/${type.name()}-actual-game.png`)});
   await page.click('#retire-button');
   await page.waitForSelector('#result-screen:not([hidden])');
   assert.equal(await page.getAttribute('#app', 'data-result-type'), 'retired');
