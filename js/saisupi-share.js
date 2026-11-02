@@ -1,3 +1,4 @@
+import {t,formatTime} from './i18n/index.js';
 export const RESULT_SHARE_STATUSES = Object.freeze({
   SHARED: 'shared',
   COPIED: 'copied',
@@ -15,7 +16,7 @@ function requireScore(score) {
 function formatScore(scoreCentiseconds) {
   const seconds = Math.floor(scoreCentiseconds / 100);
   const fraction = String(scoreCentiseconds % 100).padStart(2, '0');
-  return `${seconds}.${fraction}秒`;
+  return formatTime(scoreCentiseconds);
 }
 
 export function normalizeShareUrl(pageUrl) {
@@ -28,13 +29,13 @@ export function normalizeShareUrl(pageUrl) {
 export function createHomeShareContent({ pageUrl }) {
   const url = normalizeShareUrl(pageUrl);
   const text = [
-    'サイスピ',
-    'サイコロを転がし、10個の目を揃えるタイムアタックゲーム',
+    t('サイスピ'),
+    t('サイコロを転がし、10個の目を揃えるタイムアタックゲーム'),
     url
   ].join('\n');
 
   return Object.freeze({
-    title: 'サイスピ',
+    title: t('サイスピ'),
     text,
     url,
     copyText: text
@@ -52,26 +53,16 @@ export function createResultShareContent({
   const url = normalizeShareUrl(pageUrl);
   const lines = Number.isSafeInteger(result.scoreCentiseconds)
     && result.scoreCentiseconds >= 0
-    ? [`サイスピを ${formatScore(requireScore(result.scoreCentiseconds))} でクリア`, url]
-    : ['サイスピをプレイしました', url];
+    ? [t('サイスピを {time} でクリア',{time:formatScore(requireScore(result.scoreCentiseconds))}), url]
+    : [t('サイスピをプレイしました'), url];
   const text = lines.join('\n');
 
   return Object.freeze({
-    title: 'サイスピ',
+    title: t('サイスピ'),
     text,
     url,
     copyText: text
   });
-}
-
-function supportsShare(navigatorObject, shareData) {
-  if (typeof navigatorObject?.share !== 'function') return false;
-  if (typeof navigatorObject.canShare !== 'function') return true;
-  try {
-    return navigatorObject.canShare(shareData);
-  } catch {
-    return false;
-  }
 }
 
 async function copyShareText(navigatorObject, text) {
@@ -84,16 +75,16 @@ async function copyShareText(navigatorObject, text) {
   }
 }
 
-export async function shareResult(content, navigatorObject = globalThis.navigator) {
-  const shareData = { title: content.title, text: content.text };
-  if (supportsShare(navigatorObject, shareData)) {
-    try {
-      await navigatorObject.share(shareData);
+export async function shareResult(content, navigatorObject = globalThis.navigator, windowObject = globalThis.window) {
+  const intent = new URL('https://x.com/intent/post');
+  intent.searchParams.set('text', content.text);
+  try {
+    const popup = windowObject?.open(intent.href, '_blank');
+    if (popup) {
+      popup.opener = null;
       return RESULT_SHARE_STATUSES.SHARED;
-    } catch (error) {
-      if (error?.name === 'AbortError') return RESULT_SHARE_STATUSES.CANCELLED;
     }
-  }
+  } catch { /* Copy remains available when a popup is blocked. */ }
   const copied = await copyShareText(navigatorObject, content.copyText);
   return copied ? RESULT_SHARE_STATUSES.COPIED : RESULT_SHARE_STATUSES.FAILED;
 }

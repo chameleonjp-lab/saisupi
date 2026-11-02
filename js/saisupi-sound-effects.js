@@ -1,3 +1,5 @@
+export const VOLUME_PREFERENCE_KEY = 'saisupi:sound-volume:v1';
+
 export const SOUND_PREFERENCE_KEY = 'saisupi:sound-enabled:v1';
 
 function readStoredPreference(storage) {
@@ -42,6 +44,8 @@ export class SoundEffects {
     this.contextFactory = contextFactory;
     this.random = random;
     this.enabled = readStoredPreference(storage);
+    this.volume = 1;
+    try { const raw=storage?.getItem(VOLUME_PREFERENCE_KEY);const value=Number(raw);if(raw!==null && raw!==undefined && Number.isFinite(value)&&value>=0&&value<=1)this.volume=value; } catch {}
     this.context = null;
     this.masterGain = null;
     this.noiseBuffer = null;
@@ -56,6 +60,7 @@ export class SoundEffects {
   getSnapshot() {
     return Object.freeze({
       enabled: this.enabled,
+      volume: this.volume,
       available: !this.audioUnavailable,
       running: this.context?.state === 'running',
       state: this.context?.state ?? null
@@ -68,6 +73,14 @@ export class SoundEffects {
     if (this.enabled) await this.unlock();
     else await this.suspend();
     return this.getSnapshot();
+  }
+
+  setVolume(value) {
+    if (!Number.isFinite(value) || value < 0 || value > 1) return;
+    this.volume = value;
+    try { this.storage?.setItem(VOLUME_PREFERENCE_KEY,String(value)); } catch {}
+    if (value === 0) this.stopActiveSounds();
+    try { if (this.context && this.masterGain) this.masterGain.gain.setValueAtTime(0.42 * value,this.context.currentTime); } catch {}
   }
 
   ensureContext() {
@@ -85,7 +98,7 @@ export class SoundEffects {
     }
     try {
       this.masterGain = context.createGain();
-      this.masterGain.gain.setValueAtTime(0.42, context.currentTime);
+      this.masterGain.gain.setValueAtTime(0.42 * this.volume, context.currentTime);
       this.masterGain.connect(context.destination);
       this.context = context;
       this.noiseBuffer = null;
@@ -100,7 +113,10 @@ export class SoundEffects {
       if (!context.addEventListener) context.onstatechange = this.stateChangeHandler;
       return context;
     } catch {
+      try { this.masterGain?.disconnect?.(); } catch {}
       this.releaseContext(context);
+      this.masterGain = null;
+      try { Promise.resolve(context.close?.()).catch(() => {}); } catch {}
       this.audioUnavailable = true;
       return null;
     }
@@ -110,20 +126,22 @@ export class SoundEffects {
     if (this.unlockPromise) return this.unlockPromise;
     const promise = this.unlockAudioContext();
     this.unlockPromise = promise;
-    try {
-      return await promise;
-    } finally {
+    // Share only synchronous calls from this gesture, not an indefinitely
+    // pending browser resume. Later gestures must still invoke resume directly.
+    Promise.resolve().then(() => {
       if (this.unlockPromise === promise) this.unlockPromise = null;
-    }
+    });
+    return promise;
   }
 
   async unlockAudioContext() {
-    if (!this.enabled || this.hidden) return false;
+    if (!this.enabled || this.volume === 0 || this.hidden) return false;
     const context = this.ensureContext();
     if (!context) return false;
     try {
       if (context.state === 'suspended' || context.state === 'interrupted') await context.resume();
-      if (!this.enabled || this.hidden) {
+      if (this.context !== context) return false;
+      if (!this.enabled || this.volume === 0 || this.hidden) {
         await this.suspend();
         return false;
       }
@@ -148,11 +166,11 @@ export class SoundEffects {
   }
 
   getPlayableContext() {
-    return this.enabled && this.context?.state === 'running' ? this.context : null;
+    return this.enabled && this.volume > 0 && !this.hidden && this.context?.state === 'running' ? this.context : null;
   }
 
   releaseContext(context) {
-    if (this.context !== context) return;
+    if (!context || this.context !== context) return;
     context.removeEventListener?.('statechange', this.stateChangeHandler);
     if (!context.removeEventListener && context.onstatechange === this.stateChangeHandler) {
       context.onstatechange = null;
@@ -168,8 +186,8 @@ export class SoundEffects {
     const activeSound = { node, linkedNodes };
     const cleanup = () => {
       if (!this.activeSounds.delete(activeSound)) return;
-      node.disconnect?.();
-      for (const linkedNode of linkedNodes) linkedNode.disconnect?.();
+      try { node.disconnect?.(); } catch {}
+      for (const linkedNode of linkedNodes) { try { linkedNode.disconnect?.(); } catch {} }
     };
     activeSound.cleanup = cleanup;
     this.activeSounds.add(activeSound);
@@ -202,10 +220,14 @@ export class SoundEffects {
   }
 
   playTone({ when, frequency, endFrequency = frequency, duration, gain, type = 'sine' }) {
+    let created = [];
+    try {
     const context = this.getPlayableContext();
     if (!context) return false;
     const oscillator = context.createOscillator();
+    created.push(oscillator);
     const envelope = context.createGain();
+    created.push(envelope);
     oscillator.type = type;
     oscillator.frequency.setValueAtTime(Math.max(1, frequency), when);
     oscillator.frequency.exponentialRampToValueAtTime(Math.max(1, endFrequency), when + duration);
@@ -218,14 +240,20 @@ export class SoundEffects {
     oscillator.start(when);
     oscillator.stop(when + duration + 0.01);
     return true;
+    } catch { for (const node of created) { try { node.stop?.(); } catch {} try { node.disconnect?.(); } catch {} } this.stopActiveSounds(); return false; }
   }
 
   playNoise({ when, duration, gain, frequency, type = 'bandpass', q = 0.9 }) {
+    let created = [];
+    try {
     const context = this.getPlayableContext();
     if (!context) return false;
     const source = context.createBufferSource();
+    created.push(source);
     const filter = context.createBiquadFilter();
+    created.push(filter);
     const envelope = context.createGain();
+    created.push(envelope);
     source.buffer = this.createNoiseBuffer(context);
     filter.type = type;
     filter.frequency.setValueAtTime(frequency, when);
@@ -239,6 +267,7 @@ export class SoundEffects {
     source.start(when);
     source.stop(when + duration + 0.01);
     return true;
+    } catch { for (const node of created) { try { node.stop?.(); } catch {} try { node.disconnect?.(); } catch {} } this.stopActiveSounds(); return false; }
   }
 
   playFlick() {
@@ -278,7 +307,7 @@ export class SoundEffects {
     const context = this.context;
     this.releaseContext(context);
     try {
-      context?.close?.();
+      Promise.resolve(context?.close?.()).catch(() => {});
     } catch {
       // 終了処理の失敗は無視する。
     }

@@ -41,7 +41,8 @@ test('一致時の光柱とテッテレーSEは3秒の成功イベントへ接�
 test('開始記録と結果スコア送信は既存Supabase RPCを使う', () => {
   assert.match(main, /startPlayRecording/u);
   assert.match(main, /rankingClient\.startPlay/u);
-  assert.match(main, /rankingClient\.submitScore/u);
+  assert.match(main, /submitDurableResult\(preferenceStorage,state\.run,snapshot,rankingClient\)/u);
+  assert.match(read('js/saisupi-result.js'), /client\.submitScore/u);
   assert.match(main, /rankingClient\.getTopRanking/u);
   assert.match(main, /retireGame/u);
   assert.match(main, /resultReplayButton/u);

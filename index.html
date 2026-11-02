@@ -56,7 +56,7 @@
           </li>
         </ol>
         <label class="player-name-field" for="player-name-input">
-          <span>名前 <b>必須</b></span>
+          <span>名前 <b>任意</b></span>
           <input
             id="player-name-input"
             name="player-name"
@@ -64,19 +64,22 @@
             autocomplete="nickname"
             autocapitalize="off"
             enterkeyhint="done"
-            maxlength="20"
             spellcheck="false"
             aria-describedby="player-name-help player-name-error"
             placeholder="名前を入力"
           >
-          <small id="player-name-help">1〜20文字。名前はこのプレイ画面に表示します</small>
+          <small id="player-name-help">名前を入力すると、名前と記録がランキングに公開されます。空欄でも遊べます。</small>
         </label>
+        <label class="language-field">言語 <select id="language-select" aria-label="言語"></select></label>
         <p id="player-name-error" class="form-error" role="alert" hidden></p>
         <div class="home-actions">
           <button id="start-button" class="primary-button" type="button">ゲームを始める</button>
-          <button id="home-share-button" class="secondary-button" type="button">ゲームをシェア</button>
-          <a id="home-lab-link" class="secondary-button lab-link" href="https://chameleonjp-lab.github.io/chameleonjp_lab/ranking.html?game=saisupi">カメレオンJPの実験場</a>
+          <button id="last-result-button" class="secondary-button" type="button" hidden>前回の結果</button>
+          <button id="home-share-button" class="secondary-button" type="button">Xでシェア</button>
+          <a id="home-lab-link" class="secondary-button lab-link" href="https://chameleonjp-lab.github.io/chameleonjp_lab/ranking.html?game=saisupi">ランキング</a>
         </div>
+        <div id="pending-results" class="home-actions"></div>
+        <textarea id="home-share-fallback" readonly hidden aria-label="シェア文"></textarea>
         <p id="home-share-status" class="share-status" role="status" aria-live="polite"></p>
         <p id="home-error" class="form-error" role="alert" hidden></p>
       </div>
@@ -127,6 +130,7 @@
           <span>スコア</span>
           <strong id="result-score">--.--秒</strong>
         </div>
+        <p id="result-save-warning" role="status" hidden>結果を保存できませんでした。この画面を開いたまま再試行できます。</p>
         <p id="result-record-message" class="result-record-message" role="status">ランキングへ送信しています…</p>
         <dl class="result-summary">
           <div><dt>名前</dt><dd id="result-player-name">—</dd></div>
@@ -146,7 +150,7 @@
 
         <section class="result-ranking" aria-labelledby="result-ranking-title">
           <header>
-            <h3 id="result-ranking-title">上位10人のランキング</h3>
+            <h3 id="result-ranking-title">上位30名のランキング</h3>
             <span id="result-ranking-status" role="status" aria-live="polite">読み込み中…</span>
           </header>
           <ol id="result-ranking-list" class="result-ranking-list"></ol>
@@ -155,10 +159,11 @@
 
         <div class="result-actions">
           <button id="replay-button" class="primary-button" type="button">もう一度プレイ</button>
-          <button id="result-share-button" class="secondary-button" type="button">結果をシェア</button>
+          <button id="result-share-button" class="secondary-button" type="button">Xでシェア</button>
           <button id="result-home-button" class="secondary-button" type="button">ホーム画面に戻る</button>
-          <a id="result-lab-link" class="secondary-button lab-link" href="https://chameleonjp-lab.github.io/chameleonjp_lab/ranking.html?game=saisupi">カメレオンJPの実験場</a>
+          <a id="result-lab-link" class="secondary-button lab-link" href="https://chameleonjp-lab.github.io/chameleonjp_lab/ranking.html?game=saisupi">ランキング</a>
         </div>
+        <textarea id="result-share-fallback" readonly hidden aria-label="シェア文"></textarea>
         <p id="result-share-status" class="share-status" role="status" aria-live="polite"></p>
       </div>
     </section>
@@ -175,6 +180,7 @@
       <span id="sound-toggle-icon" aria-hidden="true">🔊</span>
       <span id="sound-toggle-label">効果音 オン</span>
     </button>
+    <label class="sound-volume">効果音の音量 <input id="sound-volume" type="range" min="0" max="1" step="0.05" value="1" aria-label="効果音の音量"></label>
     <p id="sound-status" class="visually-hidden" role="status" aria-live="polite"></p>
   </footer>
 

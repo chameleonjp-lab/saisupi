@@ -1,0 +1,2 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {SoundEffects} from '../js/saisupi-sound-effects.js';
+test('failed master-gain initialization disconnects allocated node',()=>{let disconnected=0;const context={state:'running',currentTime:0,destination:{},createGain:()=>({gain:{setValueAtTime(){}},connect(){throw Error('connect failed')},disconnect(){disconnected++}})};const sound=new SoundEffects({storage:null,contextFactory:()=>context});assert.equal(sound.ensureContext(),null);assert.equal(disconnected,1);assert.equal(sound.masterGain,null)});
