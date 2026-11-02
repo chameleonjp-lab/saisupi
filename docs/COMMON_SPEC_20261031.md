@@ -120,3 +120,14 @@ GitHub Pages Source は `GitHub Actions`（workflow）をAPIで確認。
 
 ## 2026-11-02 09:46 JST normal ACK follow-up
 Baseline PR15 `d3e046063d6e5a0f7d835ebae2af0bef76416f6a`. PostgreSQL int4 first-score/play-count bounds and ascending best <= this submitted time are now checked before durable acknowledgement. Existing first-score zero/signed history and valid faster historical best are preserved. The production client-to-durable-outbox regression reproduced premature acknowledgement, then verified the same UUID/payload remains retryable until valid acknowledgement. Local 76 tests and syntax64 pass; Pages packaging passes. Independent review and new-head Chromium/WebKit CI are pending; device/identity/production acceptance limitations remain unchanged. No game timing, rules, DB or production scores changed.
+
+## 2026-11-02: X表示・紹介画像の受入補強
+
+- ホーム/結果の共有文に正式名の `#サイスピ #ゲーム制作` を付与。15言語・合法スコア境界でURLを23字相当として280字以内を検査。独立したコピー専用ボタンは元からなく、Xを開けない場合のコピー/選択欄だけを維持。
+- 402×874のホームで固定音量フッターがXの中心を遮ることを隔離CIのPNGとhit-testで再現。ホーム/結果はフッターの実高さを別grid行で確保し、ゲーム中のfixed配置とsafe-areaは維持。採点/時間/盤面/ランキング契約は変更しない。
+- Chromium/WebKitで15言語のホーム/正常結果UIを検査。ja/en/deは縦・横・短い高さを追加。44px、祖先非表示、中心hit、黒白/押下色、実intent生成、今回結果を確認。結果UIは既存renderer fixtureであり、実3Dの10目クリアやiPhone実機受入とは区別する。スクロールで対象へ到達した画像であり全画面が常時収まるという主張ではない。
+- 実Three.js側は匿名の開始/移動/言語変更/中断を既存検証として保持。言語変更直後のresizeによる空canvas撮影は、layout安定と次の実renderの非空多色pixelを確認してから撮影するtest-only対策とし、製品rendererは変更しない。
+- 新 `assets/saisupi-og-v3.png` (1200×630) は実際の隔離実行画像の盤面部分をnative SVGで切り出し・比例配置し、正式名と事実に沿う紹介文を組み合わせたもの。盤面や目印を描き足していない。旧v2の円形目印は現四角タイルと異なるため差替え、旧画像は削除しない。SVGに元画像を埋め込み再現可能に保持。OG/TwitterのURLを統一。
+- 画像元: 検証commit `70d841aebf1a2ea69f10a908a0f592026dd3dc89`、CI run `41403439360`、Chromiumの日本語実game canvas PNG (SHA-256 `9bdb18cb8e7228b09698d048c7d9798a9a6095ba6753d007329542076dd445d2`)。紹介画像生成CI `41404328440`。いずれも本番配備を行わない作業branch・外部通信deny/mock。
+- PR前検証用のpush対象は今回の作業branchだけ追加。mainの配備条件/権限/runnerは不変、branchのconcurrencyを本番から分離。テストPNGを7日保存。公開確認、Xカードの外部キャッシュ更新、iPhone実機のsafe-area/音の受入は本人マージ後の別確認。
+- 元へ戻す場合はこのPR差分をrevertし、必要ならOG/Twitterを保持済みv2へ戻す。スコア/端末保存キー/既存データを消去しない。
