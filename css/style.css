@@ -817,3 +817,9 @@ img {
 .sound-volume input { width:130px; }
 .home-card, .result-card { margin-bottom:110px; }
 .app[data-screen="playing"] ~ .app-footer .sound-volume { display:none; }
+
+/* Home/result settings reserve their own row instead of covering action targets. */
+body { display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+.app { min-height: 0; }
+.app-footer { position: static; margin: 10px max(12px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+.app[data-screen="playing"] ~ .app-footer { position: fixed; margin: 0; }
